@@ -16,7 +16,7 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 
-// Database connection
+// Database connection 
 require('./config/dbConfig');
 
 // Start server
