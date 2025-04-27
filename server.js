@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const userRoutes = require('./routes/userRoutes');
 const productRoutes = require('./routes/productRoutes');
+const cors = require('cors');
 
 // Load environment variables
 dotenv.config();
@@ -11,6 +12,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(cors());  // Allow all origins (for development)
 
 // Routes
 app.use('/api/users', userRoutes);
