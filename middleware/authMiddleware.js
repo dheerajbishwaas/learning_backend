@@ -4,6 +4,7 @@ const User = require('../models/userModel');
 const verifyTokenAndRole = (allowedRoles) => {
   return async (req, res, next) => {
     const token = req.headers['authorization']?.split(' ')[1];  // Extract token from Authorization header
+    console.log('JWT_SECRET:', process.env.JWT_SECRET);
 
     if (!token) {
       return res.status(403).json({ message: 'Access denied, no token provided' });

@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const userRoutes = require('./routes/userRoutes');
 const productRoutes = require('./routes/productRoutes');
+const courseCategoryRoutes = require('./routes/courseCategoryRoutes');
 const cors = require('cors');
 
 // Load environment variables
@@ -17,6 +18,8 @@ app.use(cors());  // Allow all origins (for development)
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api', courseCategoryRoutes);
+
 
 // Database connection 
 require('./config/dbConfig');
