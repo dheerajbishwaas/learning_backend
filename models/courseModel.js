@@ -44,8 +44,8 @@ const courseSchema = new Schema({
     maxlength: 160
   },
   categories: [{
-    type: String,
-    enum: ['Programming', 'Design', 'Business', 'Marketing', 'Photography', 'Music', 'Health', 'Fitness', 'Academics']
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CourseCategoryModel'
   }],
   chapters: [{
     title: String,

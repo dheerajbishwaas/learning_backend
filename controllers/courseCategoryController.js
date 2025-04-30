@@ -66,3 +66,20 @@ exports.deleteCategory = async (req, res) => {
     res.status(500).json({ message: 'Server error while deleting category' });
   }
 };
+
+// Get all active Course Categories
+exports.getAllCategory = async (req, res) => {
+  try {
+    const categories = await CourseCategory.find({ status: 'active' }).sort({ value: 1 }); // Only active
+    res.status(200).json({
+      success: true,
+      data: categories
+    });
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching categories'
+    });
+  }
+};

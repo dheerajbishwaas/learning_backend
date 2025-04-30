@@ -4,7 +4,6 @@ const User = require('../models/userModel');
 const verifyTokenAndRole = (allowedRoles) => {
   return async (req, res, next) => {
     const token = req.headers['authorization']?.split(' ')[1];  // Extract token from Authorization header
-    console.log('JWT_SECRET:', process.env.JWT_SECRET);
 
     if (!token) {
       return res.status(403).json({ message: 'Access denied, no token provided' });
@@ -17,9 +16,10 @@ const verifyTokenAndRole = (allowedRoles) => {
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
+      const role = Number(user.role); // force conversion to number
 
       // Check if the user's role is included in allowedRoles
-      if (!allowedRoles.includes(user.role)) {
+      if (!allowedRoles.includes(role)) {
         return res.status(403).json({ message: 'Forbidden, you do not have the required role' });
       }
 
