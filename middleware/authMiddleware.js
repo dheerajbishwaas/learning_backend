@@ -16,9 +16,10 @@ const verifyTokenAndRole = (allowedRoles) => {
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
+      const role = Number(user.role); // force conversion to number
 
       // Check if the user's role is included in allowedRoles
-      if (!allowedRoles.includes(user.role)) {
+      if (!allowedRoles.includes(role)) {
         return res.status(403).json({ message: 'Forbidden, you do not have the required role' });
       }
 
