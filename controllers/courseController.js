@@ -59,4 +59,33 @@ const createCourse = async (req, res) => {
   }
 };
 
-module.exports = { createCourse };
+const getPaginatedCourses = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const skip = (page - 1) * limit;
+
+    // Fetch data
+    const [courses, total] = await Promise.all([
+      Course.find().skip(skip).limit(limit).sort({ createdAt: -1 }),
+      Course.countDocuments()
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: courses,
+      total,
+      page,
+      limit
+    });
+  } catch (err) {
+    console.error('Error in getPaginatedCourses:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server Error',
+    });
+  }
+};
+
+module.exports = { createCourse,getPaginatedCourses };
