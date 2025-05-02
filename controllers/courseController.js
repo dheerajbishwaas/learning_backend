@@ -88,4 +88,114 @@ const getPaginatedCourses = async (req, res) => {
   }
 };
 
-module.exports = { createCourse,getPaginatedCourses };
+const updateCourse = async (req, res) => {
+  try {
+    const courseId = req.params.id;
+    const {
+      courseName,
+      courseType,
+      description,
+      youtubeLink,
+      videoCredits,
+      status,
+      metaTitle,
+      metaDescription,
+      categories,
+      chapters
+    } = req.body;
+
+    // Validation
+    if (!courseName || !courseType || !description) {
+      return res.status(400).json({ message: 'Required fields missing' });
+    }
+
+    if (courseType === 'single') {
+      if (!youtubeLink || !videoCredits) {
+        return res.status(400).json({ message: 'youtubeLink and videoCredits are required for single type course' });
+      }
+    }
+
+    if (courseType === 'multi') {
+      if (!chapters || !Array.isArray(chapters) || chapters.length === 0) {
+        return res.status(400).json({ message: 'At least one chapter is required for multi type course' });
+      }
+    }
+
+    // Find and Update
+    const updatedCourse = await Course.findByIdAndUpdate(
+      courseId,
+      {
+        courseName,
+        courseType,
+        description,
+        youtubeLink: courseType === 'single' ? youtubeLink : undefined,
+        videoCredits: courseType === 'single' ? videoCredits : undefined,
+        status,
+        metaTitle,
+        metaDescription,
+        categories,
+        chapters: courseType === 'multi' ? chapters : []
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedCourse) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    return res.status(200).json({
+      message: 'Course updated successfully',
+      data: updatedCourse
+    });
+
+  } catch (error) {
+    console.error('Error in updateCourse:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const getCourseById = async (req, res) => {
+  try {
+    const courseId = req.params.id;
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    return res.status(200).json({
+      message: 'Course fetched successfully',
+      data: course
+    });
+
+  } catch (error) {
+    console.error('Error in getCourseById:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const deleteCourseById = async (req, res) => {
+  try {
+    const courseId = req.params.id;
+
+    // Find and delete the course
+    const deletedCourse = await Course.findByIdAndDelete(courseId);
+
+    if (!deletedCourse) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    return res.status(200).json({
+      message: 'Course deleted successfully',
+      data: deletedCourse
+    });
+
+  } catch (error) {
+    console.error('Error in deleteCourseById:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+module.exports = { createCourse,getPaginatedCourses,updateCourse,getCourseById,deleteCourseById};
