@@ -77,7 +77,7 @@ const logIn = async (req, res) => {
     res.setHeader('Set-Cookie', cookie.serialize('token', token, {
       httpOnly: true,
       secure: true, // Set secure flag in production only
-      sameSite: 'none',
+      sameSite: 'None',
       maxAge: 60 * 60 * 24, // 1 day
       path: '/',
     }));
