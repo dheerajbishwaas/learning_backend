@@ -104,8 +104,8 @@ const logout = async (req, res) => {
     // Clear the token cookie for the current user
     res.clearCookie('token', {
       httpOnly: true, // Cookie will be sent only to the server
-      secure: false,  // Set to true in production (use HTTPS)
-      sameSite: 'strict',
+      secure: true,  // Set to true in production (use HTTPS)
+      sameSite: 'None',
       path: '/', // Path of the cookie
     });
 
