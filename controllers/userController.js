@@ -76,8 +76,8 @@ const logIn = async (req, res) => {
     );
     res.setHeader('Set-Cookie', cookie.serialize('token', token, {
       httpOnly: true,
-      secure: false, // Set secure flag in production only
-      sameSite: 'strict',
+      secure: true, // Set secure flag in production only
+      sameSite: 'none',
       maxAge: 60 * 60 * 24, // 1 day
       path: '/',
     }));
@@ -105,7 +105,7 @@ const logout = async (req, res) => {
     res.clearCookie('token', {
       httpOnly: true, // Cookie will be sent only to the server
       secure: true,  // Set to true in production (use HTTPS)
-      sameSite: 'None',
+      sameSite: 'none',
       path: '/', // Path of the cookie
     });
 
