@@ -14,7 +14,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors());  // Allow all origins (for development)
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));  // Allow all origins (for development)
 
 // Routes
 app.use('/api/users', userRoutes);
