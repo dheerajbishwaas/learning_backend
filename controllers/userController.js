@@ -1,8 +1,8 @@
+const cookie = require('cookie');
 const User = require('../models/userModel');
 const bcrypt = require('bcrypt');
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
-
 dotenv.config();
 
 const getAllUsers = async (req, res) => {
@@ -74,7 +74,13 @@ const logIn = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '1d' } // Token valid for 7 days
     );
-
+    res.setHeader('Set-Cookie', cookie.serialize('token', token, {
+      httpOnly: true,
+      secure: false, // Set secure flag in production only
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24, // 1 day
+      path: '/',
+    }));
     res.status(200).json({
       message: 'Login Successful',
       token,
@@ -93,5 +99,21 @@ const logIn = async (req, res) => {
   }
 };
 
+const logout = async (req, res) => {
+  try {
+    // Clear the token cookie for the current user
+    res.clearCookie('token', {
+      httpOnly: true, // Cookie will be sent only to the server
+      secure: false,  // Set to true in production (use HTTPS)
+      sameSite: 'strict',
+      path: '/', // Path of the cookie
+    });
 
-module.exports = { getAllUsers , logIn, userCreate};
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+
+module.exports = { getAllUsers , logIn, userCreate,logout};
