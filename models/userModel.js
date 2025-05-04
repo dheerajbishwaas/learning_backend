@@ -29,6 +29,10 @@ const userSchema = mongoose.Schema({
     enum: [1, 2, 3],  // Predefined roles ['admin', 'user', 'moderator']
     default: 'user',  // Default role is 'user'
   },
+  ipAddress: {
+    type: String,
+    default: '',
+  },
   createdAt: {
     type: Date,
     default: Date.now,

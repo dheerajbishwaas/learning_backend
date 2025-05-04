@@ -28,6 +28,8 @@ const userCreate = async (req, res) => {
 
     // Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
+    // Get IP address from headers or connection
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     const newUser = new User({
       name,
@@ -35,6 +37,7 @@ const userCreate = async (req, res) => {
       username,
       password: hashedPassword,
       role: role || 'user',
+      ipAddress: ip,
     });
 
     await newUser.save();
@@ -122,4 +125,101 @@ const logout = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers , logIn, userCreate,logout};
+const getPaginatedUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;  // Page number (default: 1)
+    const limit = parseInt(req.query.limit) || 10;  // Limit per page (default: 10)
+
+    const skip = (page - 1) * limit;  // Calculate the number of records to skip
+
+    // Get the current user ID from the request (assumes the user is authenticated)
+    const currentUserId = req.user._id;
+
+    // Fetch user data excluding the current user
+    const [users, total] = await Promise.all([
+      User.find({ _id: { $ne: currentUserId } })  // Exclude current user
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 }),  // Sort by createdAt (descending)
+      User.countDocuments({ _id: { $ne: currentUserId } })  // Total count excluding current user
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: users,
+      total,  // Total count of users excluding the current user
+      page,   // Current page number
+      limit,  // Records per page
+    });
+  } catch (err) {
+    console.error('Error in getPaginatedUsers:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server Error',
+    });
+  }
+};
+
+const userUpdate = async (req, res) => {
+  try {
+    const { userId } = req.params; // User ID to update
+    const { name, email, username, password, role } = req.body;
+
+    // Check if email or username already exists (except for the current user)
+    const existingUser = await User.findOne({
+      $and: [
+        { _id: { $ne: userId } },  // Exclude current user
+        { $or: [{ email }, { username }] }  // Check if email or username exists
+      ]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email or Username already exists' });
+    }
+
+    // Find the user by ID and update
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Hash password if it is provided in the update
+    if (password) {
+      user.password = await bcrypt.hash(password, 10);
+    }
+
+    // Update user fields
+    user.name = name || user.name;
+    user.email = email || user.email;
+    user.username = username || user.username;
+    user.role = role || user.role;
+
+    await user.save();
+
+    res.status(200).json({ message: 'User updated successfully', user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getUserById = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).select('-password'); // hide password
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    console.error('Error in getUserById:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
+module.exports = { getAllUsers , logIn, userCreate,logout,getPaginatedUsers ,userUpdate,getUserById };
