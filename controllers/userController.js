@@ -74,13 +74,23 @@ const logIn = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '1d' } // Token valid for 7 days
     );
-    res.setHeader('Set-Cookie', cookie.serialize('token', token, {
-      httpOnly: true,
-      secure: true, // Set secure flag in production only
-      sameSite: 'None',
-      maxAge: 60 * 60 * 24, // 1 day
-      path: '/',
-    }));
+    res.setHeader('Set-Cookie', [
+      cookie.serialize('token', token, {
+        httpOnly: true, 
+        secure: true,
+        sameSite: 'None',
+        maxAge: 60 * 60 * 24,
+        path: '/',
+      }),
+      cookie.serialize('access_token', token, {
+        httpOnly: false,    
+        secure: true,
+        sameSite: 'None',
+        maxAge: 60 * 60 * 24,
+        path: '/',
+      }),
+    ]);
+
     res.status(200).json({
       message: 'Login Successful',
       token,
