@@ -67,34 +67,33 @@ const logIn = async (req, res) => {
     if (user.status !== 1) {
       return res.status(403).json({ message: 'Account is inactive. Contact Admin.' });
     }
-    res.setHeader('Set-Cookie', [
-      `access_token=${token}; Secure; SameSite=None; Path=/; Max-Age=86400; Domain=${process.env.FRONTEND_URL}`
-    ]);
-    
+
     // Create JWT Token
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '1d' } // Token valid for 7 days
     );
-
+    res.setHeader('Set-Cookie', [
+      `access_token=${token}; Secure; SameSite=None; Path=/; Max-Age=86400; Domain=${(process.env.FRONTEND_URL)}`
+    ]);
     res.setHeader('Set-Cookie', [
       cookie.serialize('token', token, {
-        httpOnly: true,         // for secure API use (non-JS accessible)
+        httpOnly: true, 
         secure: true,
         sameSite: 'None',
         maxAge: 60 * 60 * 24,
         path: '/',
       }),
       cookie.serialize('access_token', token, {
-        httpOnly: false,        // ❗ middleware can read this
+        httpOnly: false,    
         secure: true,
         sameSite: 'None',
         maxAge: 60 * 60 * 24,
         path: '/',
       }),
     ]);
-    
+
     res.status(200).json({
       message: 'Login Successful',
       token,
