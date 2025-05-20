@@ -3,6 +3,7 @@ const User = require('../models/userModel');
 const bcrypt = require('bcrypt');
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
+const nodemailer = require("nodemailer");
 dotenv.config();
 
 const getAllUsers = async (req, res) => {
@@ -221,5 +222,42 @@ const getUserById = async (req, res) => {
   }
 };
 
+const contactus = async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const { name, email, message } = req.body;
 
-module.exports = { getAllUsers , logIn, userCreate,logout,getPaginatedUsers ,userUpdate,getUserById };
+  // Step 1: Transporter setup (Gmail SMTP)
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    secure: process.env.SMTP_AUTH, // true for port 465
+    auth: {
+      user: process.env.SMTP_UNAME, // Gmail address
+      pass: process.env.SMTP_PASSWORD,  // App password
+    },
+  });
+
+  // Step 2: Mail Options
+  const mailOptions = {
+    from: `"${name}" <${email}>`, // Sender info
+    to: process.env.ADMIN_MAIL, // 👈 Jis email par mail receive karni hai
+    subject: "New Contact Form Submission",
+    html: `
+      <p><strong>Name:</strong> ${name}</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Message:</strong><br/>${message}</p>
+      <p><strong>User IP:</strong><br/>${ip}</p>
+    `,
+  };
+
+  // Step 3: Send mail
+  try {
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ success: true, message: "Message sent successfully!" });
+  } catch (error) {
+    console.error("Email error:", error);
+    res.status(500).json({ success: false, message: "Something went wrong!" });
+  }
+};
+
+module.exports = { contactus,getAllUsers , logIn, userCreate,logout,getPaginatedUsers ,userUpdate,getUserById };
