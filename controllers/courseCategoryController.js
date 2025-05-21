@@ -1,5 +1,6 @@
 const CourseCategory = require('../models/courseCategoryModel');
 const Course = require('../models/courseModel');
+const mongoose = require('mongoose');
 // Create a new Course Category
 exports.createCategory = async (req, res) => {
   try {
@@ -11,9 +12,15 @@ exports.createCategory = async (req, res) => {
       return res.status(400).json({ message: 'Category already exists' });
     }
 
+    let icon = '';
+    if (req.file) {
+      icon = `/uploads/category/${req.file.filename}`; 
+    }
+
     const category = new CourseCategory({
       name,
       description,
+      icon,
       status // optional: if not sent, default "active" will be used
     });
 
@@ -29,12 +36,22 @@ exports.createCategory = async (req, res) => {
 // Update an existing Course Category
 exports.updateCategory = async (req, res) => {
   try {
+
     const { id } = req.params;
     const { name, description, status } = req.body;
+    let icon = '';
+    if (req.file) {
+      icon = `/uploads/category/${req.file.filename}`; 
+    }
+
+    let updateData = { name, description, status };
+    if (icon) {
+      updateData.icon = icon;
+    }
 
     const updatedCategory = await CourseCategory.findByIdAndUpdate(
       id,
-      { name, description, status },
+      updateData,
       { new: true, runValidators: true }
     );
 
@@ -76,7 +93,6 @@ exports.deleteCategory = async (req, res) => {
   }
 };
 
-
 // Get all active Course Categories
 exports.getAllCategory = async (req, res) => {
   try {
@@ -93,6 +109,62 @@ exports.getAllCategory = async (req, res) => {
     });
   }
 };
+
+// Categories API
+exports.getAllCategorys = async (req, res) => {
+  try {
+    const search = req.query.search || '';
+    const categories = await CourseCategory.find({
+      name: { $regex: search, $options: 'i' },
+      status: 'active',
+    }).select('id name').sort({ name: 1 });
+
+    res.json({ success: true, data: categories });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+exports.getPaginatedCourse = async (req, res) => {
+  try {
+    const { search = '', cat_id, limit = 9, page = 1 } = req.query;
+    const query = {};
+
+    if (search) {
+      query.courseName = { $regex: search, $options: 'i' };
+    }
+
+    if (cat_id) {
+      if (!mongoose.Types.ObjectId.isValid(cat_id)) {
+        return res.status(400).json({ success: false, message: 'Invalid category ID' });
+      }
+      query.categories = new mongoose.Types.ObjectId(cat_id);
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const courses = await Course.find(query)
+      .populate('categories', 'name')
+      .skip(skip)
+      .limit(Number(limit))
+      .select('courseName description categories');
+
+    const total = await Course.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: courses,
+      total,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / limit)
+    });
+
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    res.status(500).json({ success: false, message: 'Error fetching courses' });
+  }
+};
+
 
 exports.getPaginatedCourseCategories = async (req, res) => {
   try {

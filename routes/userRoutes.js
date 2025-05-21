@@ -2,7 +2,7 @@ const express = require('express');
 const { verifyTokenAndRole } = require('../middleware/authMiddleware');  // Import the middleware
 const router = express.Router();
 
-const {contactus,getAllUsers,logIn,userCreate,logout,getPaginatedUsers,getUserById,userUpdate} = require('../controllers/userController');
+const {getAllCategory,contactus,getAllUsers,logIn,userCreate,logout,getPaginatedUsers,getUserById,userUpdate} = require('../controllers/userController');
 
 router.get('/',getUserById);
 router.get('/getuser/:userId', verifyTokenAndRole([1]),getUserById);

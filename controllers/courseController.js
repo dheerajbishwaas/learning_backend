@@ -1,4 +1,5 @@
 const Course = require('../models/courseModel');
+const mongoose = require('mongoose');
 
 const createCourse = async (req, res) => {
   try {
@@ -87,6 +88,7 @@ const getPaginatedCourses = async (req, res) => {
     });
   }
 };
+
 
 const updateCourse = async (req, res) => {
   try {
@@ -198,4 +200,4 @@ const deleteCourseById = async (req, res) => {
 };
 
 
-module.exports = { createCourse,getPaginatedCourses,updateCourse,getCourseById,deleteCourseById};
+module.exports = {createCourse,getPaginatedCourses,updateCourse,getCourseById,deleteCourseById};

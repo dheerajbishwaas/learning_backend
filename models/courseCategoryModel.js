@@ -13,6 +13,10 @@ const courseCategorySchema = new Schema({
     type: String,
     required: true
   },
+  icon: {
+    type: String,
+    required: true
+  },
   status: {
     type: String,
     enum: ['active', 'inactive'], // only active or inactive allowed
