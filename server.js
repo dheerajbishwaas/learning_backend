@@ -6,6 +6,7 @@ const productRoutes = require('./routes/productRoutes');
 const courseCategoryRoutes = require('./routes/courseCategoryRoutes');
 const courseRoutes = require('./routes/courseRoute');
 const cors = require('cors');
+const path = require('path');
 
 // Load environment variables
 dotenv.config();
@@ -15,6 +16,9 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));  // Allow all origins (for development)
+
+// Serve static files from the uploads folder
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/users', userRoutes);

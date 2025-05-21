@@ -45,7 +45,7 @@ const courseSchema = new Schema({
   },
   categories: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'CourseCategoryModel'
+    ref: 'CourseCategory'
   }],
   chapters: [{
     title: String,
