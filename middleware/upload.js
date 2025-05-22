@@ -2,17 +2,22 @@
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const { Client } = require('basic-ftp');
+const { PassThrough } = require('stream');
+require('dotenv').config();
 
-// Define category upload path
+// Define category upload path (local fallback)
 const categoryUploadPath = path.join(__dirname, '../uploads/category');
 
-// Create the folder if it doesn't exist
 if (!fs.existsSync(categoryUploadPath)) {
   fs.mkdirSync(categoryUploadPath, { recursive: true });
 }
 
-// Multer storage config
-const storage = multer.diskStorage({
+// Multer memory storage for FTP upload
+const memoryStorage = multer.memoryStorage();
+
+// Multer disk storage for local upload
+const diskStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, categoryUploadPath);
   },
@@ -32,6 +37,45 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage, fileFilter });
+// Upload middleware with switch
+const uploadToLocal = multer({ storage: diskStorage, fileFilter });
+const uploadToMemory = multer({ storage: memoryStorage, fileFilter });
 
-module.exports = upload;
+// FTP upload function
+async function uploadFileToFTP(buffer, filename) {
+  const client = new Client();
+
+  try {
+    await client.access({
+      host: process.env.FTP_HOST,
+      user: process.env.FTP_USER,
+      password: process.env.FTP_PASSWORD,
+      secure: false,
+    });
+
+    const uploadPath = process.env.FTP_UPLOAD_PATH || '/public_html/uploads/category';
+    await client.ensureDir(uploadPath);
+
+    // Convert buffer to stream
+    const bufferStream = new PassThrough();
+    bufferStream.end(buffer);
+
+    // Upload from stream
+    await client.uploadFrom(bufferStream, `${uploadPath}/${filename}`);
+
+    console.log('File uploaded to FTP:', filename);
+
+    await client.close();
+
+    return `/uploads/category/${filename}`;
+  } catch (err) {
+    console.error('FTP Upload Error:', err.message);
+    throw err;
+  }
+}
+
+module.exports = {
+  uploadToLocal,
+  uploadToMemory,
+  uploadFileToFTP
+};

@@ -4,8 +4,8 @@ const courseCategoryController = require('../controllers/courseCategoryControlle
 const {verifyTokenAndRole} = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload'); // <--- Import the upload middleware
 
-router.post('/categories',verifyTokenAndRole([1]), upload.single('icon'),courseCategoryController.createCategory);
-router.put('/categories/:id', verifyTokenAndRole([1]),upload.single('icon'), courseCategoryController.updateCategory);
+router.post('/categories',verifyTokenAndRole([1]), upload.uploadToMemory.single('icon'),courseCategoryController.createCategory);
+router.put('/categories/:id', verifyTokenAndRole([1]),upload.uploadToMemory.single('icon'), courseCategoryController.updateCategory);
 router.delete('/categories/:id', verifyTokenAndRole([1]), courseCategoryController.deleteCategory);
 router.get('/categories/getAllCategory', courseCategoryController.getAllCategory);
 router.get('/categories/getAllCategorys', courseCategoryController.getAllCategorys);

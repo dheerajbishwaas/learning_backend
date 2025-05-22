@@ -2,6 +2,9 @@ const CourseCategory = require('../models/courseCategoryModel');
 const Course = require('../models/courseModel');
 const mongoose = require('mongoose');
 // Create a new Course Category
+const path = require('path');
+const { uploadFileToFTP } = require('../middleware/upload'); // FTP helper function
+
 exports.createCategory = async (req, res) => {
   try {
     const { name, description, status } = req.body;
@@ -14,14 +17,18 @@ exports.createCategory = async (req, res) => {
 
     let icon = '';
     if (req.file) {
-      icon = `/uploads/category/${req.file.filename}`; 
+      const ext = path.extname(req.file.originalname);
+      const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+
+      // Upload to FTP and get public path
+      icon = await uploadFileToFTP(req.file.buffer, filename);
     }
 
     const category = new CourseCategory({
       name,
       description,
-      icon,
-      status // optional: if not sent, default "active" will be used
+      icon, 
+      status
     });
 
     await category.save();
@@ -33,15 +40,18 @@ exports.createCategory = async (req, res) => {
   }
 };
 
-// Update an existing Course Category
 exports.updateCategory = async (req, res) => {
   try {
-
     const { id } = req.params;
     const { name, description, status } = req.body;
+
     let icon = '';
     if (req.file) {
-      icon = `/uploads/category/${req.file.filename}`; 
+      const ext = path.extname(req.file.originalname);
+      const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+
+      // Upload to FTP and get the public path
+      icon = await uploadFileToFTP(req.file.buffer, filename);
     }
 
     let updateData = { name, description, status };
@@ -59,13 +69,15 @@ exports.updateCategory = async (req, res) => {
       return res.status(404).json({ message: 'Category not found' });
     }
 
-    res.status(200).json({ message: 'Category updated successfully', category: updatedCategory });
+    res.status(200).json({
+      message: 'Category updated successfully',
+      category: updatedCategory,
+    });
   } catch (error) {
     console.error('Error updating category:', error);
     res.status(500).json({ message: 'Server error while updating category' });
   }
 };
-
 // Delete a Course Category
 exports.deleteCategory = async (req, res) => {
   try {
