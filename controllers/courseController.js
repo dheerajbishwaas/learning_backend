@@ -199,5 +199,40 @@ const deleteCourseById = async (req, res) => {
   }
 };
 
+const getCourse = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-module.exports = {createCourse,getPaginatedCourses,updateCourse,getCourseById,deleteCourseById};
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid course ID' });
+    }
+
+    const course = await Course.findById(id)
+      .populate('categories', 'name') // Only populate category name
+      .select(
+        'courseName courseType description youtubeLink videoCredits categories chapters status metaTitle metaDescription'
+      );
+
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Course not found' });
+    }
+
+    // Format categories to only show names
+    const formattedCourse = {
+      ...course.toObject(),
+      categories: course.categories.map(cat => cat.name)
+    };
+
+    res.json({
+      success: true,
+      data: formattedCourse
+    });
+
+  } catch (error) {
+    console.error('Error fetching course by ID:', error);
+    res.status(500).json({ success: false, message: 'Error fetching course details' });
+  }
+};
+
+
+module.exports = { getCourse, createCourse,getPaginatedCourses,updateCourse,getCourseById,deleteCourseById};
