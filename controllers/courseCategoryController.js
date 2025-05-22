@@ -117,7 +117,7 @@ exports.getAllCategorys = async (req, res) => {
     const categories = await CourseCategory.find({
       name: { $regex: search, $options: 'i' },
       status: 'active',
-    }).select('id name').sort({ name: 1 });
+    }).select('id name icon').sort({ name: 1 });
 
     res.json({ success: true, data: categories });
   } catch (err) {
