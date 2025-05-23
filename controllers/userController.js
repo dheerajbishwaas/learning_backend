@@ -128,29 +128,45 @@ const logout = async (req, res) => {
 
 const getPaginatedUsers = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;  // Page number (default: 1)
-    const limit = parseInt(req.query.limit) || 10;  // Limit per page (default: 10)
+    const page = parseInt(req.query.page) || 1;       // Page number
+    const limit = parseInt(req.query.limit) || 10;    // Rows per page
+    const search = req.query.search || '';            // Search term (optional)
+    const skip = (page - 1) * limit;
 
-    const skip = (page - 1) * limit;  // Calculate the number of records to skip
-
-    // Get the current user ID from the request (assumes the user is authenticated)
     const currentUserId = req.user._id;
 
-    // Fetch user data excluding the current user
+    // Build search filter (case-insensitive partial match)
+    const searchFilter = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { username: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } },
+          ],
+        }
+      : {};
+
+    // Combine filters: exclude current user + search filter
+    const filter = {
+      _id: { $ne: currentUserId },
+      ...searchFilter,
+    };
+
+    // Fetch users and total count in parallel
     const [users, total] = await Promise.all([
-      User.find({ _id: { $ne: currentUserId } })  // Exclude current user
+      User.find(filter)
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 }),  // Sort by createdAt (descending)
-      User.countDocuments({ _id: { $ne: currentUserId } })  // Total count excluding current user
+        .sort({ createdAt: -1 }),
+      User.countDocuments(filter),
     ]);
 
     res.status(200).json({
       success: true,
       data: users,
-      total,  // Total count of users excluding the current user
-      page,   // Current page number
-      limit,  // Records per page
+      total,
+      page,
+      limit,
     });
   } catch (err) {
     console.error('Error in getPaginatedUsers:', err);

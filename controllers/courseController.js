@@ -64,13 +64,27 @@ const getPaginatedCourses = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
 
     const skip = (page - 1) * limit;
 
-    // Fetch data
+    // Build search filter for multiple fields
+    const searchFilter = search
+      ? {
+          $or: [
+            { courseName: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+            { videoCredits: { $regex: search, $options: 'i' } },
+            { metaTitle: { $regex: search, $options: 'i' } },
+            { metaDescription: { $regex: search, $options: 'i' } },
+            { 'chapters.title': { $regex: search, $options: 'i' } }
+          ]
+        }
+      : {};
+
     const [courses, total] = await Promise.all([
-      Course.find().skip(skip).limit(limit).sort({ createdAt: -1 }),
-      Course.countDocuments()
+      Course.find(searchFilter).skip(skip).limit(limit).sort({ createdAt: -1 }),
+      Course.countDocuments(searchFilter)
     ]);
 
     res.status(200).json({
