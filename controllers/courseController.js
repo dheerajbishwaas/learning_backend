@@ -13,12 +13,19 @@ const createCourse = async (req, res) => {
       metaTitle,
       metaDescription,
       categories,
+      courseSlug,
       chapters
     } = req.body;
 
     // Validation
     if (!courseName || !courseType || !description) {
       return res.status(400).json({ message: 'Required fields missing' });
+    }
+
+    // Slug uniqueness check
+    const existingCourse = await Course.findOne({ courseSlug });
+    if (existingCourse) {
+      return res.status(409).json({ message: 'Course slug already exists. Please choose a unique slug.' });
     }
 
     if (courseType === 'single') {
@@ -42,6 +49,7 @@ const createCourse = async (req, res) => {
       videoCredits: courseType === 'single' ? videoCredits : undefined,
       status,
       metaTitle,
+      courseSlug,
       metaDescription,
       categories,
       chapters: courseType === 'multi' ? chapters : []
@@ -117,12 +125,23 @@ const updateCourse = async (req, res) => {
       metaTitle,
       metaDescription,
       categories,
-      chapters
+      chapters,
+      courseSlug
     } = req.body;
 
     // Validation
     if (!courseName || !courseType || !description) {
       return res.status(400).json({ message: 'Required fields missing' });
+    }
+
+    // Check for unique courseSlug (excluding current course)
+    const existingSlug = await Course.findOne({
+      courseSlug,
+      _id: { $ne: courseId }
+    });
+
+    if (existingSlug) {
+      return res.status(400).json({ message: 'Course slug already exists. Please choose a different one.' });
     }
 
     if (courseType === 'single') {
@@ -150,6 +169,7 @@ const updateCourse = async (req, res) => {
         metaTitle,
         metaDescription,
         categories,
+        courseSlug,
         chapters: courseType === 'multi' ? chapters : []
       },
       { new: true, runValidators: true }
@@ -217,15 +237,28 @@ const getCourse = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: 'Invalid course ID' });
+    let course;
+
+    // Check if 'id' is a valid ObjectId (fetch by _id)
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      course = await Course.findById(id)
+        .populate('categories', 'name')
+        .select(
+          'courseName courseType description youtubeLink videoCredits categories chapters status metaTitle metaDescription courseSlug'
+        );
     }
 
-    const course = await Course.findById(id)
-      .populate('categories', 'name') // Only populate category name
-      .select(
-        'courseName courseType description youtubeLink videoCredits categories chapters status metaTitle metaDescription'
-      );
+    // If not found by ID, or not a valid ObjectId, try finding by courseSlug
+    if (!course) {
+      course = await Course.findOne({
+        courseSlug: { $regex: `^${id}$`, $options: 'i' } // case-insensitive exact match
+      })
+        .populate('categories', 'name')
+        .select(
+          'courseName courseType description youtubeLink videoCredits categories chapters status metaTitle metaDescription courseSlug'
+        );
+    }
+
 
     if (!course) {
       return res.status(404).json({ success: false, message: 'Course not found' });
@@ -243,7 +276,7 @@ const getCourse = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching course by ID:', error);
+    console.error('Error fetching course by ID or slug:', error);
     res.status(500).json({ success: false, message: 'Error fetching course details' });
   }
 };

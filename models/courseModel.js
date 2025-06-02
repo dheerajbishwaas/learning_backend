@@ -18,6 +18,10 @@ const courseSchema = new Schema({
     type: String,
     required: true
   },
+  courseSlug: {
+    type: String,
+    required: true
+  },
   youtubeLink: {
     type: String,
     required: function () {
