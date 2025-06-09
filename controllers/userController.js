@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const nodemailer = require("nodemailer");
 const axios = require('axios');
+const crypto = require('crypto');
 
 dotenv.config();
 
@@ -12,13 +13,13 @@ const getAllUsers = async (req, res) => {
   try {
     const users = await User.find();
 
-    res.status(200).json({'msg':'Hello it wor '});
+    res.status(200).json({ 'msg': 'Hello it wor ' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-const googlAuth = async(req,res) =>{
+const googlAuth = async (req, res) => {
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
     `client_id=${process.env.GOOGLE_CLIENT_ID}` +
     `&redirect_uri=${process.env.FRONTEND_URL}/auth/google-callback` +
@@ -87,7 +88,7 @@ const googleAuthCallback = async (req, res) => {
     ]);
 
     res.cookie('token', token, {
-      httpOnly: false, 
+      httpOnly: false,
       secure: true,
       sameSite: 'None',
       maxAge: 24 * 60 * 60 * 1000, // 1 din
@@ -238,12 +239,12 @@ const getPaginatedUsers = async (req, res) => {
     // Build search filter (case-insensitive partial match)
     const searchFilter = search
       ? {
-          $or: [
-            { name: { $regex: search, $options: 'i' } },
-            { username: { $regex: search, $options: 'i' } },
-            { email: { $regex: search, $options: 'i' } },
-          ],
-        }
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { username: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+        ],
+      }
       : {};
 
     // Combine filters: exclude current user + search filter
@@ -376,4 +377,128 @@ const contactus = async (req, res) => {
   }
 };
 
-module.exports = { googleAuthCallback,googlAuth,contactus,getAllUsers , logIn, userCreate,logout,getPaginatedUsers ,userUpdate,getUserById };
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Email does not exist' });
+    }
+
+    // Generate secure token and expiry time (15 min)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+    // Save token and expiry in DB
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetTokenExpiry;
+    await user.save();
+
+    // Send reset link email
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      secure: process.env.SMTP_AUTH === 'true',
+      auth: {
+        user: process.env.SMTP_UNAME,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+    const mailOptions = {
+      from: `"Support Team" <${process.env.SMTP_UNAME}>`,
+      to: email,
+      subject: 'Reset Your Password',
+      html: `
+        <p>Hi ${user.name || ''},</p>
+        <p>You requested to reset your password.</p>
+        <p><a href="${resetLink}" target="_blank">Click here to reset</a></p>
+        <p>This link will expire in 15 minutes.</p>
+        <br/>
+        <p>If you didn’t request this, you can ignore this email.</p>
+        <p>Thanks,<br/>Tutohub Team</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Reset link has been sent to your email.',
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to send reset email. Please try again.',
+    });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { email, token, password } = req.body;
+
+  if (!email || !token || !password) {
+    return res.status(400).json({ success: false, message: 'All fields are required.' });
+  }
+
+  try {
+    const user = await User.findOne({
+      email,
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired reset link.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user.password = hashedPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    // Nodemailer transporter setup (env vars se)
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      secure: process.env.SMTP_AUTH === 'true',
+      auth: {
+        user: process.env.SMTP_UNAME,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
+
+    // Mail content for user
+    const mailOptions = {
+      from: `"TutoHub" <${process.env.SMTP_UNAME}>`, // From aapka email hi hoga
+      to: email,
+      subject: 'Your Password Has Been Reset',
+      html: `
+        <p>Hello,</p>
+        <p>Your password has been successfully reset.</p>
+        <p>If you did not perform this action, please contact us immediately or reset your password again <a href="${process.env.FRONTEND_URL}/forgot-password">Click here</a>.</p>
+        <br/>
+        <p>Thank you,<br/>TutoHub Support Team</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({ success: true, message: 'Password has been successfully reset.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to reset password.' });
+  }
+};
+
+module.exports = { resetPassword, forgotPassword, googleAuthCallback, googlAuth, contactus, getAllUsers, logIn, userCreate, logout, getPaginatedUsers, userUpdate, getUserById };

@@ -33,6 +33,14 @@ const userSchema = mongoose.Schema({
     type: String,
     default: '',
   },
+  resetPasswordToken: {
+    type: String,
+    default: null,
+  },
+  resetPasswordExpires: {
+    type: Date,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -44,7 +52,7 @@ const userSchema = mongoose.Schema({
 });
 
 // Middleware to update the updatedAt field when user document is updated
-userSchema.pre('save', function(next) {
+userSchema.pre('save', function (next) {
   if (this.isModified()) {
     this.updatedAt = Date.now();  // Only set `updatedAt` when modified
   }
