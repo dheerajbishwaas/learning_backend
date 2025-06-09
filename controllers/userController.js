@@ -95,37 +95,17 @@ const googleAuthCallback = async (req, res) => {
     });
 
     // 6. Send token and user info for client-side storage
-   res.send(`
-  <html>
-    <head><title>Logging in...</title></head>
-    <body>
-      <script>
-        window.opener.postMessage({
-          token: ${JSON.stringify(token)},
-          user: ${JSON.stringify({
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role
-          })}
-        }, '${process.env.FRONTEND_URL}');
-        window.close();
-      </script>
-    </body>
-  </html>
-`);
-
-    // return res.status(200).json({
-    //   message: 'Google login successful',
-    //   token,
-    //   user: {
-    //     id: user._id,
-    //     name: user.name,
-    //     email: user.email,
-    //     username: user.username,
-    //     role: user.role,
-    //   },
-    // });
+    return res.status(200).json({
+      message: 'Google login successful',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    });
 
   } catch (err) {
     console.error('Google Auth Error:', err);
