@@ -4,6 +4,8 @@ const bcrypt = require('bcrypt');
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const nodemailer = require("nodemailer");
+const axios = require('axios');
+
 dotenv.config();
 
 const getAllUsers = async (req, res) => {
@@ -13,6 +15,124 @@ const getAllUsers = async (req, res) => {
     res.status(200).json({'msg':'Hello it wor '});
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+const googlAuth = async(req,res) =>{
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+    `client_id=${process.env.GOOGLE_CLIENT_ID}` +
+    `&redirect_uri=${process.env.FRONTEND_URL}/auth/google-callback` +
+    `&response_type=code` +
+    `&scope=profile email` +
+    `&access_type=offline` +
+    `&prompt=consent`;
+  res.redirect(authUrl);
+}
+
+
+const googleAuthCallback = async (req, res) => {
+  const { code } = req.query;
+
+  try {
+    // 1. Exchange authorization code for access token
+    const { data: tokenData } = await axios.post('https://oauth2.googleapis.com/token', {
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      code,
+      redirect_uri: `${process.env.FRONTEND_URL}/auth/google-callback`,
+      grant_type: 'authorization_code',
+    });
+
+    // 2. Get user profile using access token
+    const { data: profile } = await axios.get(
+      'https://www.googleapis.com/oauth2/v1/userinfo?alt=json',
+      { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
+    );
+
+    // 3. Check if user already exists
+    let user = await User.findOne({ email: profile.email });
+
+    if (!user) {
+      const hashedPassword = await bcrypt.hash(profile.id, 10); // use Google ID as dummy password
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+      user = new User({
+        name: profile.name,
+        email: profile.email,
+        username: profile.email,
+        googleId: profile.id,
+        password: hashedPassword,
+        role: '2', // standard user
+        status: 1,
+        ipAddress: ip,
+      });
+
+      await user.save();
+    }
+
+    // 4. Account status check
+    if (user.status !== 1) {
+      return res.status(403).json({ message: 'Account is inactive. Contact Admin.' });
+    }
+
+    // 5. Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    res.setHeader('Set-Cookie', [
+      `token=${token}; Secure; SameSite=None; Path=/; Max-Age=86400; Domain=${(process.env.FRONTEND_URL)}`
+    ]);
+
+    res.cookie('token', token, {
+      httpOnly: false, 
+      secure: true,
+      sameSite: 'None',
+      maxAge: 24 * 60 * 60 * 1000, // 1 din
+      path: '/',
+    });
+
+    // 6. Send token and user info for client-side storage
+   res.send(`
+  <html>
+    <head><title>Logging in...</title></head>
+    <body>
+      <script>
+        window.opener.postMessage({
+          token: ${JSON.stringify(token)},
+          user: ${JSON.stringify({
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+          })}
+        }, '${process.env.FRONTEND_URL}');
+        window.close();
+      </script>
+    </body>
+  </html>
+`);
+
+    // return res.status(200).json({
+    //   message: 'Google login successful',
+    //   token,
+    //   user: {
+    //     id: user._id,
+    //     name: user.name,
+    //     email: user.email,
+    //     username: user.username,
+    //     role: user.role,
+    //   },
+    // });
+
+  } catch (err) {
+    console.error('Google Auth Error:', err);
+    res.status(400).json({
+      success: false,
+      message: 'Google authentication failed',
+    });
   }
 };
 
@@ -276,4 +396,4 @@ const contactus = async (req, res) => {
   }
 };
 
-module.exports = { contactus,getAllUsers , logIn, userCreate,logout,getPaginatedUsers ,userUpdate,getUserById };
+module.exports = { googleAuthCallback,googlAuth,contactus,getAllUsers , logIn, userCreate,logout,getPaginatedUsers ,userUpdate,getUserById };
