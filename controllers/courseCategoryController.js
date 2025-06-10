@@ -159,6 +159,7 @@ exports.getPaginatedCourse = async (req, res) => {
       .populate('categories', 'name')
       .skip(skip)
       .limit(Number(limit))
+      .sort({ createdAt: -1 })
       .select('courseName description categories courseSlug');
 
     const total = await Course.countDocuments(query);
