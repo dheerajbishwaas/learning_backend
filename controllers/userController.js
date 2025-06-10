@@ -1,4 +1,5 @@
 const cookie = require('cookie');
+const Visitor = require('../models/visitorModel');
 const User = require('../models/userModel');
 const bcrypt = require('bcrypt');
 const dotenv = require('dotenv');
@@ -501,4 +502,74 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { resetPassword, forgotPassword, googleAuthCallback, googlAuth, contactus, getAllUsers, logIn, userCreate, logout, getPaginatedUsers, userUpdate, getUserById };
+
+const feedback = async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const { feedback, feedbackType, email, pageUrl } = req.body;
+
+  // Step 1: Transporter setup (Gmail SMTP)
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    secure: process.env.SMTP_AUTH, // true for port 465
+    auth: {
+      user: process.env.SMTP_UNAME, // Gmail address
+      pass: process.env.SMTP_PASSWORD,  // App password
+    },
+  });
+  // Step 2: Mail Options
+  const mailOptions = {
+    from: `"${email}" <${email}>`,
+    to: process.env.ADMIN_MAIL,
+    subject: "Feedback Form Submission",
+    html: `
+      <p><strong>FeedbackType:</strong> ${feedbackType}</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Feedback:</strong><br/>${feedback}</p>
+      <p><strong>User IP:</strong><br/>${ip}</p>
+      <p><strong>PageUrl:</strong><br/>${pageUrl}</p>
+    `,
+  };
+
+  // Step 3: Send mail
+  try {
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ success: true, message: "Message sent successfully!" });
+  } catch (error) {
+    console.error("Email error:", error);
+    res.status(500).json({ success: false, message: "Something went wrong!" });
+  }
+};
+
+const visitorTrack = async (req, res) => {
+    try {
+        const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        const { userAgent, referrer, pageUrl } = req.body; // Expecting these from the POST body
+
+        let visitor = await Visitor.findOne({ ipAddress: ipAddress });
+
+        if (visitor) {
+            visitor.visits += 1;
+            if (pageUrl && !visitor.pages.includes(pageUrl)) {
+                visitor.pages.push(pageUrl);
+            }
+            await visitor.save();
+            res.status(200).json({ message: 'Visitor updated', visitor });
+        } else {
+            const newVisitor = new Visitor({
+                ipAddress: ipAddress,
+                userAgent: userAgent,
+                referrer: referrer,
+                visits: 1,
+                pages: pageUrl ? [pageUrl] : [],
+            });
+            await newVisitor.save();
+            res.status(201).json({ message: 'New visitor logged', visitor: newVisitor });
+        }
+    } catch (error) {
+        console.error('Error logging manual visit:', error);
+        res.status(500).json({ message: 'Failed to log visit', error: error.message });
+    }
+}
+
+module.exports = { visitorTrack, feedback, resetPassword, forgotPassword, googleAuthCallback, googlAuth, contactus, getAllUsers, logIn, userCreate, logout, getPaginatedUsers, userUpdate, getUserById };
