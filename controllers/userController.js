@@ -56,7 +56,9 @@ const googleAuthCallback = async (req, res) => {
 
     if (!user) {
       const hashedPassword = await bcrypt.hash(profile.id, 10); // use Google ID as dummy password
-      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const forwarded = req.headers['x-forwarded-for'];
+      const ip = forwarded ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
+
 
       user = new User({
         name: profile.name,
@@ -132,7 +134,9 @@ const userCreate = async (req, res) => {
     // Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
     // Get IP address from headers or connection
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
+
 
     const newUser = new User({
       name,
@@ -543,7 +547,8 @@ const feedback = async (req, res) => {
 
 const visitorTrack = async (req, res) => {
     try {
-        const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        const forwarded = req.headers['x-forwarded-for'];
+        const ipAddress = forwarded ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
         const { userAgent, referrer, pageUrl } = req.body; // Expecting these from the POST body
 
         let visitor = await Visitor.findOne({ ipAddress: ipAddress });
