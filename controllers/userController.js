@@ -576,4 +576,53 @@ const visitorTrack = async (req, res) => {
     }
 }
 
-module.exports = { visitorTrack, feedback, resetPassword, forgotPassword, googleAuthCallback, googlAuth, contactus, getAllUsers, logIn, userCreate, logout, getPaginatedUsers, userUpdate, getUserById };
+const getPaginatedVisitors = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;       // Page number
+    const limit = parseInt(req.query.limit) || 10;    // Rows per page
+    const search = req.query.search || '';            // Search term (optional)
+    const skip = (page - 1) * limit;
+
+    // Build search filter (case-insensitive partial match)
+    const searchFilter = search
+      ? {
+          $or: [
+            { ipAddress: { $regex: search, $options: 'i' } },
+            { userAgent: { $regex: search, $options: 'i' } },
+            { referrer: { $regex: search, $options: 'i' } },
+          ],
+        }
+      : {};
+
+    // Combine filters: search filter for IP, userAgent, or referrer
+    const filter = {
+      ...searchFilter,
+    };
+
+    // Fetch visitors and total count in parallel
+    const [visitors, total] = await Promise.all([
+      Visitor.find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 }),  // Sort by createdAt in descending order
+      Visitor.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: visitors,
+      total,
+      page,
+      limit,
+    });
+  } catch (err) {
+    console.error('Error in getPaginatedVisitors:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server Error',
+    });
+  }
+};
+
+
+module.exports = { getPaginatedVisitors,visitorTrack, feedback, resetPassword, forgotPassword, googleAuthCallback, googlAuth, contactus, getAllUsers, logIn, userCreate, logout, getPaginatedUsers, userUpdate, getUserById };
