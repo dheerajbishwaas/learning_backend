@@ -4,7 +4,7 @@ const { importCourse,getCourse,getPaginatedCourse,createCourse,getPaginatedCours
 const { verifyTokenAndRole } = require('../middleware/authMiddleware');
 
 router.post('/create',verifyTokenAndRole([1]), createCourse);
-router.get('/importCourse',importCourse);
+router.post('/importCourse',verifyTokenAndRole([1]),importCourse);
 router.get('/getCourseById/:id',verifyTokenAndRole([1]), getCourseById);
 router.get('/getbyid/:id', getCourse);
 router.put('/update/:id',verifyTokenAndRole([1]), updateCourse);

@@ -290,10 +290,10 @@ const youtube = google.youtube({
 
 const importCourse = async (req, res) => {
   try {
-    const { channelId, playlistIds, categoryIds, courseName, description } = req.body;
-    console.log(req.body);
-    if (!channelId || !playlistIds?.length || !categoryIds?.length || !courseName || !description) {
-      return res.status(400).json({ message: 'channelId, playlistIds, categoryIds, courseName, and description are required.' });
+    const { channelId, playlistId, categoryIds, courseName, description } = req.body;
+
+    if (!channelId || !playlistId || !categoryIds?.length || !courseName) {
+      return res.status(400).json({ message: 'channelId, playlistId, categoryIds and courseName are required.' });
     }
 
     // Validate that all categories exist
@@ -304,48 +304,50 @@ const importCourse = async (req, res) => {
 
     const chapters = [];
 
-    for (const playlistId of playlistIds) {
-      let nextPageToken = null;
+    let nextPageToken = null;
+    let courseDescription = description; // keep initial value
 
-      do {
-        const resY = await youtube.playlistItems.list({
-          part: 'snippet',
-          playlistId,
-          maxResults: 50,
-          pageToken: nextPageToken
+    do {
+      const resY = await youtube.playlistItems.list({
+        part: 'snippet',
+        playlistId,
+        // maxResults: 50,
+        pageToken: nextPageToken
+      });
+
+      const items = resY.data.items || [];
+      nextPageToken = resY.data.nextPageToken;
+
+      items.forEach(item => {
+        const snip = item.snippet;
+        courseDescription = snip.description;
+        chapters.push({
+          title: snip.title,
+          youtubeLink: `https://www.youtube.com/embed/${snip.resourceId.videoId}`,
+          description: snip.description,
+          credits: snip.videoOwnerChannelTitle
         });
+      });
 
-        const items = resY.data.items || [];
-        nextPageToken = resY.data.nextPageToken;
-
-        items.forEach(item => {
-          const snip = item.snippet;
-          chapters.push({
-            title: snip.title,
-            youtubeLink: `https://www.youtube.com/watch?v=${snip.resourceId.videoId}`,
-            description: snip.description,
-            credits: snip.videoOwnerChannelTitle
-          });
-        });
-      } while (nextPageToken);
-    }
+    } while (nextPageToken);
 
     const course = new Course({
       courseName,
       courseType: 'multi',
-      description,
+      description: courseDescription,
       courseSlug: courseName.toLowerCase().replace(/\s+/g, '-'),
       categories: categoryIds,
       chapters
     });
-    
+
     await course.save();
 
     res.json({ message: 'Course imported and saved.', course });
   } catch (err) {
-    console.error('importCourse error:', err);
-    res.status(500).json({ message: 'Internal server error.' });
+    console.log(err);
+   res.status(500).json({ message: err.message || 'Internal server error.' });
   }
 };
+
 
 module.exports = {importCourse, getCourse, createCourse,getPaginatedCourses,updateCourse,getCourseById,deleteCourseById};
