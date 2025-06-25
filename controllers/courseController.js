@@ -1,5 +1,7 @@
 const Course = require('../models/courseModel');
+const CourseCategory = require('../models/courseCategoryModel');
 const mongoose = require('mongoose');
+const { google } = require('googleapis');
 
 const createCourse = async (req, res) => {
   try {
@@ -281,5 +283,69 @@ const getCourse = async (req, res) => {
   }
 };
 
+const youtube = google.youtube({
+  version: 'v3',
+  auth: process.env.GOOGLE_API_KEY
+});
 
-module.exports = { getCourse, createCourse,getPaginatedCourses,updateCourse,getCourseById,deleteCourseById};
+const importCourse = async (req, res) => {
+  try {
+    const { channelId, playlistIds, categoryIds, courseName, description } = req.body;
+    console.log(req.body);
+    if (!channelId || !playlistIds?.length || !categoryIds?.length || !courseName || !description) {
+      return res.status(400).json({ message: 'channelId, playlistIds, categoryIds, courseName, and description are required.' });
+    }
+
+    // Validate that all categories exist
+    const categories = await CourseCategory.find({ _id: { $in: categoryIds } });
+    if (categories.length !== categoryIds.length) {
+      return res.status(400).json({ message: 'Some category IDs are invalid.' });
+    }
+
+    const chapters = [];
+
+    for (const playlistId of playlistIds) {
+      let nextPageToken = null;
+
+      do {
+        const resY = await youtube.playlistItems.list({
+          part: 'snippet',
+          playlistId,
+          maxResults: 50,
+          pageToken: nextPageToken
+        });
+
+        const items = resY.data.items || [];
+        nextPageToken = resY.data.nextPageToken;
+
+        items.forEach(item => {
+          const snip = item.snippet;
+          chapters.push({
+            title: snip.title,
+            youtubeLink: `https://www.youtube.com/watch?v=${snip.resourceId.videoId}`,
+            description: snip.description,
+            credits: snip.videoOwnerChannelTitle
+          });
+        });
+      } while (nextPageToken);
+    }
+
+    const course = new Course({
+      courseName,
+      courseType: 'multi',
+      description,
+      courseSlug: courseName.toLowerCase().replace(/\s+/g, '-'),
+      categories: categoryIds,
+      chapters
+    });
+    
+    await course.save();
+
+    res.json({ message: 'Course imported and saved.', course });
+  } catch (err) {
+    console.error('importCourse error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+module.exports = {importCourse, getCourse, createCourse,getPaginatedCourses,updateCourse,getCourseById,deleteCourseById};
