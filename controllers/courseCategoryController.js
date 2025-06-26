@@ -140,7 +140,9 @@ exports.getAllCategorys = async (req, res) => {
 exports.getPaginatedCourse = async (req, res) => {
   try {
     const { search = '', cat_id, limit = 9, page = 1 } = req.query;
-    const query = {};
+    const query = {
+      status: 'published'
+    };
 
     if (search) {
       query.courseName = { $regex: search, $options: 'i' };
