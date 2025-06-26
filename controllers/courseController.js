@@ -344,7 +344,6 @@ const importCourse = async (req, res) => {
 
     res.json({ message: 'Course imported and saved.', course });
   } catch (err) {
-    console.log(err);
    res.status(500).json({ message: err.message || 'Internal server error.' });
   }
 };
