@@ -140,9 +140,7 @@ exports.getAllCategorys = async (req, res) => {
 exports.getPaginatedCourse = async (req, res) => {
   try {
     const { search = '', cat_id, limit = 9, page = 1 } = req.query;
-    const query = {
-      status: 'published'
-    };
+    const query = { status: 'published' };
 
     if (search) {
       query.courseName = { $regex: search, $options: 'i' };
@@ -162,13 +160,36 @@ exports.getPaginatedCourse = async (req, res) => {
       .skip(skip)
       .limit(Number(limit))
       .sort({ createdAt: -1 })
-      .select('courseName description categories courseSlug');
+      .select('courseName description categories courseSlug courseType youtubeLink videoCredits chapters')
+      .lean();
+
+    // ✅ Add first video link based on courseType
+    const modifiedCourses = courses.map(course => {
+      let firstVideo = null;
+
+      if (course.courseType === 'single') {
+        // single course -> direct youtubeLink field
+        firstVideo = course.youtubeLink || null;
+      } else if (
+        course.courseType === 'multi' &&
+        Array.isArray(course.chapters) &&
+        course.chapters.length > 0
+      ) {
+        // multi course -> first chapter ka youtubeLink
+        firstVideo = course.chapters[0].youtubeLink || null;
+      }
+
+      return {
+        ...course,
+        firstVideo
+      };
+    });
 
     const total = await Course.countDocuments(query);
 
     res.json({
       success: true,
-      data: courses,
+      data: modifiedCourses,
       total,
       currentPage: Number(page),
       totalPages: Math.ceil(total / limit)
