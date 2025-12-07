@@ -347,21 +347,20 @@ const contactus = async (req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const { name, email, message } = req.body;
 
-  // Step 1: Transporter setup (Gmail SMTP)
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_AUTH, // true for port 465
+    host: process.env.SMTP_HOST, 
+    port: Number(process.env.SMTP_PORT), 
+    secure: false,
     auth: {
-      user: process.env.SMTP_UNAME, // Gmail address
-      pass: process.env.SMTP_PASSWORD,  // App password
+      user: process.env.SMTP_UNAME,  
+      pass: process.env.SMTP_PASSWORD 
     },
   });
 
-  // Step 2: Mail Options
   const mailOptions = {
-    from: `"${name}" <${email}>`, // Sender info
-    to: process.env.ADMIN_MAIL, // 👈 Jis email par mail receive karni hai
+    from: `"${name}" <${email}>`,
+    to: process.env.ADMIN_MAIL,
+    replyTo: email,
     subject: "New Contact Form Submission",
     html: `
       <p><strong>Name:</strong> ${name}</p>
@@ -371,7 +370,6 @@ const contactus = async (req, res) => {
     `,
   };
 
-  // Step 3: Send mail
   try {
     await transporter.sendMail(mailOptions);
     res.status(200).json({ success: true, message: "Message sent successfully!" });
