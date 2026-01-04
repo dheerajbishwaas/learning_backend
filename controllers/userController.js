@@ -357,9 +357,6 @@ const contactus = async (req, res) => {
       user: process.env.SMTP_UNAME,
       pass: process.env.SMTP_PASSWORD
     },
-    tls: {
-      ciphers: 'SSLv3'
-    },
     logger: true,
     debug: true
   });
