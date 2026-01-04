@@ -347,14 +347,21 @@ const contactus = async (req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const { name, email, message } = req.body;
 
+  console.log(`Contact Form: Sending email via ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`);
+
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST, 
-    port: Number(process.env.SMTP_PORT), 
-    secure: false,
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
+    secure: process.env.SMTP_PORT == '465', // true only for 465, false for 587
     auth: {
-      user: process.env.SMTP_UNAME,  
-      pass: process.env.SMTP_PASSWORD 
+      user: process.env.SMTP_UNAME,
+      pass: process.env.SMTP_PASSWORD
     },
+    tls: {
+      ciphers: 'SSLv3'
+    },
+    logger: true,
+    debug: true
   });
 
   const mailOptions = {
@@ -543,35 +550,35 @@ const feedback = async (req, res) => {
 };
 
 const visitorTrack = async (req, res) => {
-    try {
-        const forwarded = req.headers['x-forwarded-for'];
-        const ipAddress = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
-        const { userAgent, referrer, pageUrl } = req.body; // Expecting these from the POST body
+  try {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipAddress = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
+    const { userAgent, referrer, pageUrl } = req.body; // Expecting these from the POST body
 
-        let visitor = await Visitor.findOne({ ipAddress: ipAddress });
+    let visitor = await Visitor.findOne({ ipAddress: ipAddress });
 
-        if (visitor) {
-            visitor.visits += 1;
-            if (pageUrl && !visitor.pages.includes(pageUrl)) {
-                visitor.pages.push(pageUrl);
-            }
-            await visitor.save();
-            res.status(200).json({ message: 'Visitor updated', visitor });
-        } else {
-            const newVisitor = new Visitor({
-                ipAddress: ipAddress,
-                userAgent: userAgent,
-                referrer: referrer,
-                visits: 1,
-                pages: pageUrl ? [pageUrl] : [],
-            });
-            await newVisitor.save();
-            res.status(201).json({ message: 'New visitor logged', visitor: newVisitor });
-        }
-    } catch (error) {
-        console.error('Error logging manual visit:', error);
-        res.status(500).json({ message: 'Failed to log visit', error: error.message });
+    if (visitor) {
+      visitor.visits += 1;
+      if (pageUrl && !visitor.pages.includes(pageUrl)) {
+        visitor.pages.push(pageUrl);
+      }
+      await visitor.save();
+      res.status(200).json({ message: 'Visitor updated', visitor });
+    } else {
+      const newVisitor = new Visitor({
+        ipAddress: ipAddress,
+        userAgent: userAgent,
+        referrer: referrer,
+        visits: 1,
+        pages: pageUrl ? [pageUrl] : [],
+      });
+      await newVisitor.save();
+      res.status(201).json({ message: 'New visitor logged', visitor: newVisitor });
     }
+  } catch (error) {
+    console.error('Error logging manual visit:', error);
+    res.status(500).json({ message: 'Failed to log visit', error: error.message });
+  }
 }
 
 const getPaginatedVisitors = async (req, res) => {
@@ -584,12 +591,12 @@ const getPaginatedVisitors = async (req, res) => {
     // Build search filter (case-insensitive partial match)
     const searchFilter = search
       ? {
-          $or: [
-            { ipAddress: { $regex: search, $options: 'i' } },
-            { userAgent: { $regex: search, $options: 'i' } },
-            { referrer: { $regex: search, $options: 'i' } },
-          ],
-        }
+        $or: [
+          { ipAddress: { $regex: search, $options: 'i' } },
+          { userAgent: { $regex: search, $options: 'i' } },
+          { referrer: { $regex: search, $options: 'i' } },
+        ],
+      }
       : {};
 
     // Combine filters: search filter for IP, userAgent, or referrer
@@ -623,4 +630,4 @@ const getPaginatedVisitors = async (req, res) => {
 };
 
 
-module.exports = { getPaginatedVisitors,visitorTrack, feedback, resetPassword, forgotPassword, googleAuthCallback, googlAuth, contactus, getAllUsers, logIn, userCreate, logout, getPaginatedUsers, userUpdate, getUserById };
+module.exports = { getPaginatedVisitors, visitorTrack, feedback, resetPassword, forgotPassword, googleAuthCallback, googlAuth, contactus, getAllUsers, logIn, userCreate, logout, getPaginatedUsers, userUpdate, getUserById };
