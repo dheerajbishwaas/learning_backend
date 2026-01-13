@@ -42,7 +42,7 @@ const uploadToLocal = multer({ storage: diskStorage, fileFilter });
 const uploadToMemory = multer({ storage: memoryStorage, fileFilter });
 
 // FTP upload function
-async function uploadFileToFTP(buffer, filename) {
+async function uploadFileToFTP(buffer, filename, folderName = 'category') {
   const client = new Client();
 
   try {
@@ -53,7 +53,10 @@ async function uploadFileToFTP(buffer, filename) {
       secure: false,
     });
 
-    const uploadPath = process.env.FTP_UPLOAD_PATH || '/public_html/uploads/category';
+    const uploadPath = process.env.FTP_UPLOAD_PATH 
+      ? `${process.env.FTP_UPLOAD_PATH.replace(/\/category$/, '')}/${folderName}` 
+      : `/public_html/uploads/${folderName}`;
+      
     await client.ensureDir(uploadPath);
 
     // Convert buffer to stream
@@ -63,11 +66,11 @@ async function uploadFileToFTP(buffer, filename) {
     // Upload from stream
     await client.uploadFrom(bufferStream, `${uploadPath}/${filename}`);
 
-    console.log('File uploaded to FTP:', filename);
+    console.log(`File uploaded to FTP [${folderName}]:`, filename);
 
     await client.close();
 
-    return `/uploads/category/${filename}`;
+    return `/uploads/${folderName}/${filename}`;
   } catch (err) {
     console.error('FTP Upload Error:', err.message);
     throw err;

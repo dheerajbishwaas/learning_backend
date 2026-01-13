@@ -25,6 +25,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/job-settings', require('./routes/jobSettingsRoutes'));
+app.use('/api/blogs', require('./routes/blogRoutes'));
 
 const courseRouter = express.Router();
 courseRouter.use('/', courseRoutes);
