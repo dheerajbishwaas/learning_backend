@@ -2,39 +2,63 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+const GEMINI_API_URL =
+  'https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent';
 
 const generateBlogPost = async (topic, apiKey) => {
-    try {
-        const promptTemplatePath = path.join(__dirname, 'blogPrompt.txt');
-        let prompt = fs.readFileSync(promptTemplatePath, 'utf8');
+  try {
+    const promptTemplatePath = path.join(__dirname, 'blogPrompt.txt');
+    let prompt = fs.readFileSync(promptTemplatePath, 'utf8');
 
-        prompt = prompt.replace('{{topic}}', topic);
+    prompt = prompt.replace('{{topic}}', topic);
 
-        // Add current date to prompt context dynamically
-        const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-        prompt = prompt.replace('Current date like \'Oct 24, 2025\'', currentDate);
+    // Add current date dynamically
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
 
-        const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
-            contents: [{
-                parts: [{ text: prompt }]
-            }]
-        });
+    prompt = prompt.replace(
+      "Current date like 'Oct 24, 2025'",
+      currentDate
+    );
 
-        const generatedText = response.data.candidates[0].content.parts[0].text;
+    const response = await axios.post(
+      `${GEMINI_API_URL}?key=${apiKey}`,
+      {
+        contents: [
+          {
+            parts: [{ text: prompt }]
+          }
+        ]
+      }
+    );
 
-        // Clean up markdown code blocks if Gemini includes them despite instructions
-        const cleanJson = generatedText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const generatedText =
+      response.data.candidates[0].content.parts[0].text;
 
-        return JSON.parse(cleanJson);
+    // Clean markdown if model returns ```json
+    const cleanJson = generatedText
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .trim();
 
-    } catch (error) {
-        console.error('Error generating blog post:', error.response ? error.response.data : error.message);
-        const apiError = error.response?.data?.error?.message || error.message;
-        throw new Error(`AI Generation Failed: ${apiError}`);
-    }
+    return JSON.parse(cleanJson);
+
+  } catch (error) {
+    console.error(
+      'Error generating blog post:',
+      error.response ? error.response.data : error.message
+    );
+
+    const apiError =
+      error.response?.data?.error?.message || error.message;
+
+    throw new Error(`AI Generation Failed: ${apiError}`);
+  }
 };
 
 module.exports = {
-    generateBlogPost
+  generateBlogPost
 };
