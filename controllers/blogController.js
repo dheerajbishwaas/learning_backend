@@ -173,7 +173,11 @@ const generateBlog = async (req, res) => {
 
     } catch (error) {
         console.error('Error in generateBlog:', error);
-        res.status(500).json({ message: 'Failed to generate blog post' });
+        res.status(500).json({
+            message: 'Failed to generate blog post',
+            error: error.message,
+            details: error.response?.data || 'No additional details'
+        });
     }
 };
 

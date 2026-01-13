@@ -30,7 +30,8 @@ const generateBlogPost = async (topic, apiKey) => {
 
     } catch (error) {
         console.error('Error generating blog post:', error.response ? error.response.data : error.message);
-        throw new Error('Failed to generate blog post from AI');
+        const apiError = error.response?.data?.error?.message || error.message;
+        throw new Error(`AI Generation Failed: ${apiError}`);
     }
 };
 
