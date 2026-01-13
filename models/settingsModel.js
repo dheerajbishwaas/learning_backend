@@ -19,6 +19,10 @@ const settingsSchema = new mongoose.Schema({
     maintenanceMode: {
         type: Boolean,
         default: false
+    },
+    geminiApiKey: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true

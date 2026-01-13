@@ -8,7 +8,8 @@ const getOrCreateSettings = async () => {
             siteName: 'My Website',
             contactEmail: 'contact@example.com',
             supportPhone: '+1234567890',
-            maintenanceMode: false
+            maintenanceMode: false,
+            geminiApiKey: ''
         });
         await settings.save();
     }
@@ -29,13 +30,14 @@ const getSettings = async (req, res) => {
 // Update Settings
 const updateSettings = async (req, res) => {
     try {
-        const { siteName, contactEmail, supportPhone, maintenanceMode } = req.body;
+        const { siteName, contactEmail, supportPhone, maintenanceMode, geminiApiKey } = req.body;
         const settings = await getOrCreateSettings();
 
         if (siteName !== undefined) settings.siteName = siteName;
         if (contactEmail !== undefined) settings.contactEmail = contactEmail;
         if (supportPhone !== undefined) settings.supportPhone = supportPhone;
         if (maintenanceMode !== undefined) settings.maintenanceMode = maintenanceMode;
+        if (geminiApiKey !== undefined) settings.geminiApiKey = geminiApiKey;
 
         await settings.save();
         res.status(200).json({ message: 'Settings updated successfully', data: settings });
