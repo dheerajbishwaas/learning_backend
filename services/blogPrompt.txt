@@ -1,0 +1,15 @@
+
+You are an expert technical blog writer.
+Generate a blog post on the topic: "{{topic}}".
+
+Return ONLY invalid JSON in the following format (no markdown formatting, no backticks):
+{
+  "title": "A catchy and SEO-friendly title",
+  "slug": "seo-friendly-slug",
+  "excerpt": "A short summary (max 160 chars) for meta description",
+  "content": "Use HTML tags for the content (<h1>, <h2>, <p>, <ul>, <li>, <pre><code> for code blocks). Make it detailed and educational.",
+  "tags": ["Tag1", "Tag2", "Tag3"],
+  "readTime": "Estimated read time (e.g., '5 min read')",
+  "author": "AI Assistant",
+  "date": "Current date like 'Oct 24, 2025'"
+}

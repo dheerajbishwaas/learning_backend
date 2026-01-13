@@ -147,10 +147,41 @@ const deleteBlog = async (req, res) => {
     }
 };
 
+const Settings = require('../models/settingsModel');
+const { generateBlogPost } = require('../services/geminiService');
+
+// Generate Blog with AI
+const generateBlog = async (req, res) => {
+    try {
+        const { topic } = req.body;
+        if (!topic) {
+            return res.status(400).json({ message: 'Topic is required' });
+        }
+
+        // Get API Key from Settings
+        const settings = await Settings.findOne();
+        if (!settings || !settings.geminiApiKey) {
+            return res.status(500).json({ message: 'Gemini API Key is not configured in settings' });
+        }
+
+        const blogData = await generateBlogPost(topic, settings.geminiApiKey);
+
+        // Add a random ID as this is a preview/pre-fill
+        blogData.id = Date.now().toString();
+
+        res.status(200).json({ success: true, data: blogData });
+
+    } catch (error) {
+        console.error('Error in generateBlog:', error);
+        res.status(500).json({ message: 'Failed to generate blog post' });
+    }
+};
+
 module.exports = {
     createBlog,
     getAllBlogs,
     getBlogBySlug,
     updateBlog,
-    deleteBlog
+    deleteBlog,
+    generateBlog
 };

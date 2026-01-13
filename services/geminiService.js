@@ -1,0 +1,39 @@
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+
+const generateBlogPost = async (topic, apiKey) => {
+    try {
+        const promptTemplatePath = path.join(__dirname, 'blogPrompt.txt');
+        let prompt = fs.readFileSync(promptTemplatePath, 'utf8');
+
+        prompt = prompt.replace('{{topic}}', topic);
+
+        // Add current date to prompt context dynamically
+        const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        prompt = prompt.replace('Current date like \'Oct 24, 2025\'', currentDate);
+
+        const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
+            contents: [{
+                parts: [{ text: prompt }]
+            }]
+        });
+
+        const generatedText = response.data.candidates[0].content.parts[0].text;
+
+        // Clean up markdown code blocks if Gemini includes them despite instructions
+        const cleanJson = generatedText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        return JSON.parse(cleanJson);
+
+    } catch (error) {
+        console.error('Error generating blog post:', error.response ? error.response.data : error.message);
+        throw new Error('Failed to generate blog post from AI');
+    }
+};
+
+module.exports = {
+    generateBlogPost
+};
