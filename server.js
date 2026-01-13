@@ -26,6 +26,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/job-settings', require('./routes/jobSettingsRoutes'));
 app.use('/api/blogs', require('./routes/blogRoutes'));
+app.use('/api/settings', require('./routes/settingsRoutes'));
 
 const courseRouter = express.Router();
 courseRouter.use('/', courseRoutes);
