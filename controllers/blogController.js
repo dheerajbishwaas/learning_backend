@@ -187,5 +187,80 @@ module.exports = {
     getBlogBySlug,
     updateBlog,
     deleteBlog,
-    generateBlog
+    generateBlog,
+    importBlogs: async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ message: 'No file uploaded' });
+            }
+
+            let blogs;
+            try {
+                // Buffer to string, then parse
+                const jsonString = req.file.buffer.toString('utf-8');
+                blogs = JSON.parse(jsonString);
+            } catch (err) {
+                return res.status(400).json({ message: 'Invalid JSON file format' });
+            }
+
+            // Ensure array
+            if (!Array.isArray(blogs)) {
+                blogs = [blogs];
+            }
+
+            let result = {
+                imported: 0,
+                updated: 0,
+                failed: 0,
+                errors: []
+            };
+
+            for (const blogData of blogs) {
+                try {
+                    // Minimal validation
+                    if (!blogData.title || !blogData.slug) {
+                        result.failed++;
+                        result.errors.push(`Missing title or slug for blog: ${blogData.title || 'Unknown'}`);
+                        continue;
+                    }
+
+                    // Auto-generate ID if missing
+                    if (!blogData.id) {
+                        // Use slug as ID logic or timestamp. Using timestamp + random to be safe like in createBlog
+                        // Or create a deterministic ID from slug? 
+                        // Existing createBlog logic uses user provided ID or fails.
+                        // Let's generate one.
+                        blogData.id = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+                    }
+
+                    const existingBlog = await Blog.findOne({ slug: blogData.slug });
+
+                    if (existingBlog) {
+                        // Update
+                        Object.assign(existingBlog, blogData);
+                        await existingBlog.save();
+                        result.updated++;
+                    } else {
+                        // Create
+                        const newBlog = new Blog(blogData);
+                        await newBlog.save();
+                        result.imported++;
+                    }
+
+                } catch (err) {
+                    result.failed++;
+                    result.errors.push(`Error processing blog "${blogData.title}": ${err.message}`);
+                }
+            }
+
+            res.status(200).json({
+                message: 'Import process completed',
+                summary: result
+            });
+
+        } catch (error) {
+            console.error('Error in importBlogs:', error);
+            res.status(500).json({ message: 'Internal server error during import' });
+        }
+    }
 };

@@ -37,9 +37,18 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+const jsonFileFilter = (req, file, cb) => {
+  if (file.mimetype === 'application/json') {
+    cb(null, true);
+  } else {
+    cb(new Error('Only JSON files are allowed!'), false);
+  }
+};
+
 // Upload middleware with switch
 const uploadToLocal = multer({ storage: diskStorage, fileFilter });
 const uploadToMemory = multer({ storage: memoryStorage, fileFilter });
+const uploadJson = multer({ storage: memoryStorage, fileFilter: jsonFileFilter });
 
 // FTP upload function
 async function uploadFileToFTP(buffer, filename, folderName = 'category') {
@@ -53,10 +62,10 @@ async function uploadFileToFTP(buffer, filename, folderName = 'category') {
       secure: false,
     });
 
-    const uploadPath = process.env.FTP_UPLOAD_PATH 
-      ? `${process.env.FTP_UPLOAD_PATH.replace(/\/category$/, '')}/${folderName}` 
+    const uploadPath = process.env.FTP_UPLOAD_PATH
+      ? `${process.env.FTP_UPLOAD_PATH.replace(/\/category$/, '')}/${folderName}`
       : `/public_html/uploads/${folderName}`;
-      
+
     await client.ensureDir(uploadPath);
 
     // Convert buffer to stream
@@ -80,5 +89,6 @@ async function uploadFileToFTP(buffer, filename, folderName = 'category') {
 module.exports = {
   uploadToLocal,
   uploadToMemory,
+  uploadJson,
   uploadFileToFTP
 };
