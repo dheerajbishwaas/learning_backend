@@ -10,6 +10,14 @@ const visitorSchema = mongoose.Schema({
     type: String,
     default: null,
   },
+  riskScore: {
+    type: Number,
+    default: 0,
+  },
+  riskLevel: {
+    type: String,
+    default: 'unknown',
+  },
   referrer: {
     type: String,
     default: null,

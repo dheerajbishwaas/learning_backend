@@ -1,3 +1,4 @@
+const { analyzeRequest } = require('request-risk-score');
 const cookie = require('cookie');
 const Visitor = require('../models/visitorModel');
 const User = require('../models/userModel');
@@ -554,11 +555,23 @@ const visitorTrack = async (req, res) => {
 
     let visitor = await Visitor.findOne({ ipAddress: ipAddress });
 
+    const options = {
+      strictMode: true
+    };
+
+    const riskAnalysis = analyzeRequest({
+      ip: ipAddress,
+      headers: req.headers,
+      url: pageUrl || req.originalUrl
+    }, options);
+
     if (visitor) {
       visitor.visits += 1;
       if (pageUrl && !visitor.pages.includes(pageUrl)) {
         visitor.pages.push(pageUrl);
       }
+      visitor.riskScore = riskAnalysis.confIdenceScore;
+      visitor.riskLevel = riskAnalysis.riskLevel;
       await visitor.save();
       res.status(200).json({ message: 'Visitor updated', visitor });
     } else {
@@ -568,6 +581,8 @@ const visitorTrack = async (req, res) => {
         referrer: referrer,
         visits: 1,
         pages: pageUrl ? [pageUrl] : [],
+        riskScore: riskAnalysis.confIdenceScore,
+        riskLevel: riskAnalysis.riskLevel
       });
       await newVisitor.save();
       res.status(201).json({ message: 'New visitor logged', visitor: newVisitor });
