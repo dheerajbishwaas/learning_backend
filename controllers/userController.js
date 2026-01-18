@@ -570,8 +570,8 @@ const visitorTrack = async (req, res) => {
       if (pageUrl && !visitor.pages.includes(pageUrl)) {
         visitor.pages.push(pageUrl);
       }
-      visitor.riskScore = riskAnalysis.confIdenceScore;
-      visitor.riskLevel = riskAnalysis.riskLevel;
+      visitor.riskScore = riskAnalysis.score;
+      visitor.riskLevel = riskAnalysis.bucket;
       await visitor.save();
       res.status(200).json({ message: 'Visitor updated', visitor });
     } else {
