@@ -581,8 +581,8 @@ const visitorTrack = async (req, res) => {
         referrer: referrer,
         visits: 1,
         pages: pageUrl ? [pageUrl] : [],
-        riskScore: riskAnalysis.confIdenceScore,
-        riskLevel: riskAnalysis.riskLevel
+        riskScore: riskAnalysis.score,
+        riskLevel: riskAnalysis.bucket
       });
       await newVisitor.save();
       res.status(201).json({ message: 'New visitor logged', visitor: newVisitor });
