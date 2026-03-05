@@ -14,8 +14,6 @@ dotenv.config();
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
-// Middleware
-app.use(express.json());
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));  // Allow all origins (for development)
 
 // Serve static files from the uploads folder
@@ -27,11 +25,15 @@ app.use('/api/products', productRoutes);
 app.use('/api/job-settings', require('./routes/jobSettingsRoutes'));
 app.use('/api/blogs', require('./routes/blogRoutes'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
+app.use('/api', require('./routes/questionByGroupRoutes'));
+app.use('/api/user-answers', require('./routes/userAnswerRoutes'));
 
 const courseRouter = express.Router();
 courseRouter.use('/', courseRoutes);
 courseRouter.use('/', courseCategoryRoutes);
 app.use('/api/course', courseRouter);
+
+app.use('/api/questions', require('./routes/questionRoutes'));
 
 
 // Database connection 

@@ -2,7 +2,7 @@ const express = require('express');
 const { verifyTokenAndRole } = require('../middleware/authMiddleware');  // Import the middleware
 const router = express.Router();
 
-const {getPaginatedVisitors,visitorTrack,feedback,resetPassword,forgotPassword,googlAuth,googleAuthCallback,contactus,getAllUsers,logIn,userCreate,logout,getPaginatedUsers,getUserById,userUpdate} = require('../controllers/userController');
+const {getPaginatedVisitors,visitorTrack,feedback,resetPassword,forgotPassword,googlAuth,googleAuthCallback,contactus,getAllUsers,logIn,userCreate,createTempUser,logout,getPaginatedUsers,getUserById,userUpdate} = require('../controllers/userController');
 
 router.get('/',getUserById);
 router.get('/google',googlAuth);
@@ -11,6 +11,7 @@ router.get('/getuser/:userId', verifyTokenAndRole([1,2]),getUserById);
 router.post('/login', logIn);
 router.post('/logout', logout);
 router.post('/create', userCreate);
+router.post('/create-temp', createTempUser);
 router.put('/:userId', verifyTokenAndRole([1,2]), userUpdate);
 router.get('/getPaginatedUsers', verifyTokenAndRole([1]), getPaginatedUsers);
 router.post('/contact', contactus);

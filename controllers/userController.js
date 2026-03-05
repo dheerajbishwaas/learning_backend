@@ -157,6 +157,70 @@ const userCreate = async (req, res) => {
 
 };
 
+const createTempUser = async (req, res) => {
+  try {
+    const { userName } = req.body;
+    const name = userName;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+
+    const cleanedName = name.trim();
+    const safeName = cleanedName.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 12) || 'guest';
+
+    let username = '';
+    let email = '';
+    let attempts = 0;
+    while (attempts < 5) {
+      const uniqueSuffix = crypto.randomBytes(2).toString('hex'); // 4 chars
+      username = `temp_${safeName}_${uniqueSuffix}`;
+      email = `${username}@temp.local`;
+      const exists = await User.exists({ $or: [{ username }, { email }] });
+      if (!exists) break;
+      attempts += 1;
+    }
+
+    if (attempts === 5) {
+      return res.status(500).json({ message: 'Could not generate unique temp username' });
+    }
+
+    const tempPassword = crypto.randomBytes(16).toString('hex');
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
+
+    const tempUser = new User({
+      name: cleanedName,
+      email,
+      username,
+      password: hashedPassword,
+      role: '2',
+      status: 1,
+      ipAddress: ip,
+    });
+
+    await tempUser.save();
+    const token = jwt.sign(
+      { userId: tempUser._id, role: tempUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    return res.status(201).json({
+      message: 'Temp user created successfully',
+      token,
+      user: {
+        id: tempUser._id,
+        name: tempUser.name,
+        username: tempUser.username,
+        role: tempUser.role,
+      },
+    });
+  } catch (error) {
+    console.error('createTempUser error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
 const logIn = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -642,4 +706,4 @@ const getPaginatedVisitors = async (req, res) => {
 };
 
 
-module.exports = { getPaginatedVisitors, visitorTrack, feedback, resetPassword, forgotPassword, googleAuthCallback, googlAuth, contactus, getAllUsers, logIn, userCreate, logout, getPaginatedUsers, userUpdate, getUserById };
+module.exports = { getPaginatedVisitors, visitorTrack, feedback, resetPassword, forgotPassword, googleAuthCallback, googlAuth, contactus, getAllUsers, logIn, userCreate, createTempUser, logout, getPaginatedUsers, userUpdate, getUserById };
