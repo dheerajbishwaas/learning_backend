@@ -10,11 +10,18 @@ const path = require('path');
 
 // Load environment variables
 dotenv.config();
+const allowedOrigins = process.env.FRONTEND_URLS.split(',');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));  // Allow all origins (for development)
+app.use(cors({ origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }, credentials: true }));  // Allow all origins (for development)
 
 // Serve static files from the uploads folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
