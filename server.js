@@ -10,7 +10,9 @@ const path = require('path');
 
 // Load environment variables
 dotenv.config();
-const allowedOrigins = (process.env.FRONTEND_URLS || '').split(',');
+const allowedOrigins = (process.env.FRONTEND_URLS || '')
+  .split(',')
+  .map(origin => origin.trim());
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
