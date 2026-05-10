@@ -570,11 +570,19 @@ const feedback = async (req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const { feedback, feedbackType, email, pageUrl } = req.body;
 
+  if (!feedback || !feedback.trim()) {
+    return res.status(400).json({ success: false, message: 'Feedback is required' });
+  }
+
+  const smtpPort = Number(process.env.SMTP_PORT) || 587;
+  const senderEmail = process.env.EMAIL_FROM || process.env.SMTP_UNAME;
+  const cleanEmail = email && String(email).trim();
+
   // Step 1: Transporter setup (Gmail SMTP)
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_AUTH, // true for port 465
+    port: smtpPort,
+    secure: smtpPort === 465,
     auth: {
       user: process.env.SMTP_UNAME, // Gmail address
       pass: process.env.SMTP_PASSWORD,  // App password
@@ -582,12 +590,13 @@ const feedback = async (req, res) => {
   });
   // Step 2: Mail Options
   const mailOptions = {
-    from: `"${email}" <${email}>`,
+    from: `"TutoHub" <${senderEmail}>`,
     to: process.env.ADMIN_MAIL,
-    subject: "Feedback Form Submission",
+    replyTo: cleanEmail || undefined,
+    subject: feedbackType === 'looking-for' ? 'New TutoHub Visitor Intent' : 'Feedback Form Submission',
     html: `
       <p><strong>FeedbackType:</strong> ${feedbackType}</p>
-      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Email:</strong> ${cleanEmail || 'Not provided'}</p>
       <p><strong>Feedback:</strong><br/>${feedback}</p>
       <p><strong>User IP:</strong><br/>${ip}</p>
       <p><strong>PageUrl:</strong><br/>${pageUrl}</p>
@@ -600,7 +609,7 @@ const feedback = async (req, res) => {
     res.status(200).json({ success: true, message: "Message sent successfully!" });
   } catch (error) {
     console.error("Email error:", error);
-    res.status(500).json({ success: false, message: "Something went wrong!" });
+    res.status(500).json({ success: false, message: "Unable to send message right now." });
   }
 };
 
