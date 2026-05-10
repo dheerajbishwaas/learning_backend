@@ -11,6 +11,19 @@ const crypto = require('crypto');
 
 dotenv.config();
 
+const AUTH_TOKEN_EXPIRES_IN = '7d';
+const AUTH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
+const setAuthCookie = (res, token) => {
+  res.cookie('token', token, {
+    httpOnly: false,
+    secure: true,
+    sameSite: 'None',
+    maxAge: AUTH_COOKIE_MAX_AGE,
+    path: '/',
+  });
+};
+
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find();
@@ -84,20 +97,10 @@ const googleAuthCallback = async (req, res) => {
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: AUTH_TOKEN_EXPIRES_IN }
     );
 
-    res.setHeader('Set-Cookie', [
-      `token=${token}; Secure; SameSite=None; Path=/; Max-Age=86400; Domain=${(process.env.FRONTEND_URL)}`
-    ]);
-
-    res.cookie('token', token, {
-      httpOnly: false,
-      secure: true,
-      sameSite: 'None',
-      maxAge: 24 * 60 * 60 * 1000, // 1 din
-      path: '/',
-    });
+    setAuthCookie(res, token);
 
     // 6. Send token and user info for client-side storage
     return res.status(200).json({
@@ -202,7 +205,7 @@ const createTempUser = async (req, res) => {
     const token = jwt.sign(
       { userId: tempUser._id, role: tempUser.role },
       process.env.JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: AUTH_TOKEN_EXPIRES_IN }
     );
 
     return res.status(201).json({
@@ -246,20 +249,10 @@ const logIn = async (req, res) => {
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '1d' } // Token valid for 7 days
+      { expiresIn: AUTH_TOKEN_EXPIRES_IN }
     );
 
-    res.setHeader('Set-Cookie', [
-      `token=${token}; Secure; SameSite=None; Path=/; Max-Age=86400; Domain=${(process.env.FRONTEND_URL)}`
-    ]);
-
-    res.cookie('token', token, {
-      httpOnly: false, // Middleware ke liye accessible hona chahiye
-      secure: true,    // HTTPS ke liye
-      sameSite: 'None',
-      maxAge: 24 * 60 * 60 * 1000, // 1 din
-      path: '/',
-    });
+    setAuthCookie(res, token);
 
     res.status(200).json({
       message: 'Login Successful',
