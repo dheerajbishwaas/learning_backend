@@ -43,6 +43,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/job-settings', require('./routes/jobSettingsRoutes'));
 app.use('/api/blogs', require('./routes/blogRoutes'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
+app.use('/api/discussions', require('./routes/discussionRoutes'));
 app.use('/api', require('./routes/questionByGroupRoutes'));
 app.use('/api/user-answers', require('./routes/userAnswerRoutes'));
 
