@@ -111,18 +111,26 @@ const createChapterMessage = async (req, res) => {
 const getAdminMessages = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const status = req.query.status || 'unread';
     const skip = (page - 1) * limit;
+    const filter = {};
+
+    if (status === 'read') {
+      filter.is_read = true;
+    } else if (status === 'unread') {
+      filter.is_read = false;
+    }
 
     const [messages, total] = await Promise.all([
-      DiscussionMessage.find({})
+      DiscussionMessage.find(filter)
         .populate('user_id', 'name username email role')
         .populate('course_id', 'courseName courseSlug courseType chapters')
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      DiscussionMessage.countDocuments({}),
+      DiscussionMessage.countDocuments(filter),
     ]);
 
     const data = messages.map((item) => {
@@ -143,6 +151,8 @@ const getAdminMessages = async (req, res) => {
         senderEmail: item.user_id?.email || '',
         senderRole: item.user_id?.role || '',
         message: item.message,
+        is_read: !!item.is_read,
+        read_at: item.read_at,
         created_at: item.created_at,
         updated_at: item.updated_at,
       };
@@ -154,6 +164,7 @@ const getAdminMessages = async (req, res) => {
       total,
       page,
       limit,
+      status,
     });
   } catch (error) {
     console.error('Error in getAdminMessages:', error);
@@ -161,4 +172,32 @@ const getAdminMessages = async (req, res) => {
   }
 };
 
-module.exports = { getChapterMessages, createChapterMessage, getAdminMessages };
+const markMessageRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid message id' });
+    }
+
+    const message = await DiscussionMessage.findByIdAndUpdate(
+      id,
+      {
+        is_read: true,
+        read_at: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
+
+    return res.status(200).json({ success: true, data: message });
+  } catch (error) {
+    console.error('Error in markMessageRead:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+module.exports = { getChapterMessages, createChapterMessage, getAdminMessages, markMessageRead };
