@@ -30,22 +30,34 @@ const validateChapterReference = async (courseId, chapterId) => {
 
 const getChapterMessages = async (req, res) => {
   try {
-    const { course_id, chapter_id } = req.query;
+    const { course_id, chapter_id, before } = req.query;
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
     const validation = await validateChapterReference(course_id, chapter_id);
 
     if (!validation.valid) {
       return res.status(validation.status).json({ success: false, message: validation.message });
     }
 
-    const messages = await DiscussionMessage.find({ course_id, chapter_id })
+    const filter = { course_id, chapter_id };
+    if (before) {
+      const beforeDate = new Date(before);
+      if (!Number.isNaN(beforeDate.getTime())) {
+        filter.created_at = { $lt: beforeDate };
+      }
+    }
+
+    const messages = await DiscussionMessage.find(filter)
       .populate('user_id', 'name username')
-      .sort({ created_at: 1 })
-      .limit(100)
+      .sort({ created_at: -1 })
+      .limit(limit + 1)
       .lean();
+
+    const hasMore = messages.length > limit;
+    const pageMessages = messages.slice(0, limit).reverse();
 
     return res.status(200).json({
       success: true,
-      data: messages.map((item) => ({
+      data: pageMessages.map((item) => ({
         _id: item._id,
         course_id: item.course_id,
         chapter_id: item.chapter_id,
@@ -55,6 +67,8 @@ const getChapterMessages = async (req, res) => {
         created_at: item.created_at,
         updated_at: item.updated_at,
       })),
+      hasMore,
+      nextBefore: pageMessages[0]?.created_at || null,
     });
   } catch (error) {
     console.error('Error in getChapterMessages:', error);
