@@ -108,4 +108,57 @@ const createChapterMessage = async (req, res) => {
   }
 };
 
-module.exports = { getChapterMessages, createChapterMessage };
+const getAdminMessages = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const skip = (page - 1) * limit;
+
+    const [messages, total] = await Promise.all([
+      DiscussionMessage.find({})
+        .populate('user_id', 'name username email role')
+        .populate('course_id', 'courseName courseSlug courseType chapters')
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      DiscussionMessage.countDocuments({}),
+    ]);
+
+    const data = messages.map((item) => {
+      const course = item.course_id;
+      const chapter = course?.courseType === 'multi'
+        ? course.chapters?.find((chapterItem) => chapterItem._id.toString() === item.chapter_id)
+        : null;
+
+      return {
+        _id: item._id,
+        course_id: course?._id || item.course_id,
+        courseName: course?.courseName || 'Deleted course',
+        courseSlug: course?.courseSlug || '',
+        chapter_id: item.chapter_id,
+        chapterTitle: chapter?.title || course?.courseName || 'Course discussion',
+        user_id: item.user_id?._id,
+        senderName: item.user_id?.name || item.user_id?.username || 'Student',
+        senderEmail: item.user_id?.email || '',
+        senderRole: item.user_id?.role || '',
+        message: item.message,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data,
+      total,
+      page,
+      limit,
+    });
+  } catch (error) {
+    console.error('Error in getAdminMessages:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+module.exports = { getChapterMessages, createChapterMessage, getAdminMessages };
