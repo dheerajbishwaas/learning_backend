@@ -4,13 +4,16 @@ const discussionMessageSchema = new mongoose.Schema({
   course_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course',
-    required: true,
     index: true,
   },
   chapter_id: {
     type: String,
-    required: true,
     trim: true,
+    index: true,
+  },
+  blog_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Blog',
     index: true,
   },
   user_id: {
@@ -42,7 +45,16 @@ const discussionMessageSchema = new mongoose.Schema({
 });
 
 discussionMessageSchema.index({ course_id: 1, chapter_id: 1, created_at: 1 });
+discussionMessageSchema.index({ blog_id: 1, created_at: 1 });
 discussionMessageSchema.index({ is_read: 1, created_at: -1 });
+
+discussionMessageSchema.pre('validate', function(next) {
+  if ((!this.course_id || !this.chapter_id) && !this.blog_id) {
+    next(new Error('A discussion message must be linked to either a course chapter or a blog.'));
+  } else {
+    next();
+  }
+});
 
 const DiscussionMessage = mongoose.model('DiscussionMessage', discussionMessageSchema);
 

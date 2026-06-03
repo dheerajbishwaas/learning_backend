@@ -1,14 +1,26 @@
 const mongoose = require('mongoose');
 const Course = require('../models/courseModel');
+const Blog = require('../models/blogModel');
 const DiscussionMessage = require('../models/discussionMessageModel');
 
-const validateChapterReference = async (courseId, chapterId) => {
+const validateChapterReference = async (courseId, chapterId, blogId) => {
+  if (blogId) {
+    if (!mongoose.Types.ObjectId.isValid(blogId)) {
+      return { valid: false, status: 400, message: 'Invalid blog_id' };
+    }
+    const blog = await Blog.findById(blogId).select('_id title slug');
+    if (!blog) {
+      return { valid: false, status: 404, message: 'Blog not found' };
+    }
+    return { valid: true, blog };
+  }
+
   if (!mongoose.Types.ObjectId.isValid(courseId)) {
     return { valid: false, status: 400, message: 'Invalid course_id' };
   }
 
   if (!chapterId || typeof chapterId !== 'string') {
-    return { valid: false, status: 400, message: 'chapter_id is required' };
+    return { valid: false, status: 400, message: 'chapter_id is required when course_id is provided' };
   }
 
   const course = await Course.findById(courseId).select('courseType chapters');
@@ -30,15 +42,15 @@ const validateChapterReference = async (courseId, chapterId) => {
 
 const getChapterMessages = async (req, res) => {
   try {
-    const { course_id, chapter_id, before } = req.query;
+    const { course_id, chapter_id, blog_id, before } = req.query;
     const limit = Math.min(parseInt(req.query.limit) || 10, 50);
-    const validation = await validateChapterReference(course_id, chapter_id);
+    const validation = await validateChapterReference(course_id, chapter_id, blog_id);
 
     if (!validation.valid) {
       return res.status(validation.status).json({ success: false, message: validation.message });
     }
 
-    const filter = { course_id, chapter_id };
+    const filter = blog_id ? { blog_id } : { course_id, chapter_id };
     if (before) {
       const beforeDate = new Date(before);
       if (!Number.isNaN(beforeDate.getTime())) {
@@ -61,6 +73,7 @@ const getChapterMessages = async (req, res) => {
         _id: item._id,
         course_id: item.course_id,
         chapter_id: item.chapter_id,
+        blog_id: item.blog_id,
         user_id: item.user_id?._id,
         senderName: item.user_id?.name || item.user_id?.username || 'Student',
         message: item.message,
@@ -78,7 +91,7 @@ const getChapterMessages = async (req, res) => {
 
 const createChapterMessage = async (req, res) => {
   try {
-    const { course_id, chapter_id, message } = req.body;
+    const { course_id, chapter_id, blog_id, message } = req.body;
     const cleanMessage = typeof message === 'string' ? message.trim() : '';
 
     if (!cleanMessage) {
@@ -89,14 +102,15 @@ const createChapterMessage = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Message cannot exceed 1000 characters' });
     }
 
-    const validation = await validateChapterReference(course_id, chapter_id);
+    const validation = await validateChapterReference(course_id, chapter_id, blog_id);
     if (!validation.valid) {
       return res.status(validation.status).json({ success: false, message: validation.message });
     }
 
     const discussionMessage = await DiscussionMessage.create({
-      course_id,
-      chapter_id,
+      course_id: blog_id ? undefined : course_id,
+      chapter_id: blog_id ? undefined : chapter_id,
+      blog_id,
       user_id: req.user._id,
       message: cleanMessage,
     });
@@ -109,6 +123,7 @@ const createChapterMessage = async (req, res) => {
         _id: discussionMessage._id,
         course_id: discussionMessage.course_id,
         chapter_id: discussionMessage.chapter_id,
+        blog_id: discussionMessage.blog_id,
         user_id: discussionMessage.user_id?._id,
         senderName: discussionMessage.user_id?.name || discussionMessage.user_id?.username || 'Student',
         message: discussionMessage.message,
@@ -140,6 +155,7 @@ const getAdminMessages = async (req, res) => {
       DiscussionMessage.find(filter)
         .populate('user_id', 'name username email role')
         .populate('course_id', 'courseName courseSlug courseType chapters')
+        .populate('blog_id', 'title slug')
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(limit)
@@ -153,13 +169,16 @@ const getAdminMessages = async (req, res) => {
         ? course.chapters?.find((chapterItem) => chapterItem._id.toString() === item.chapter_id)
         : null;
 
+      const blog = item.blog_id;
+
       return {
         _id: item._id,
         course_id: course?._id || item.course_id,
-        courseName: course?.courseName || 'Deleted course',
-        courseSlug: course?.courseSlug || '',
+        courseName: blog ? blog.title : (course?.courseName || 'Deleted course'),
+        courseSlug: blog ? `/blogs/${blog.slug}` : (course?.courseSlug || ''),
         chapter_id: item.chapter_id,
-        chapterTitle: chapter?.title || course?.courseName || 'Course discussion',
+        blog_id: blog?._id,
+        chapterTitle: blog ? 'Blog Discussion' : (chapter?.title || course?.courseName || 'Course discussion'),
         user_id: item.user_id?._id,
         senderName: item.user_id?.name || item.user_id?.username || 'Student',
         senderEmail: item.user_id?.email || '',
