@@ -75,19 +75,21 @@ const getPaginatedCourses = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
+    const escapeRegex = (text) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    const escapedSearch = escapeRegex(search);
 
     const skip = (page - 1) * limit;
 
     // Build search filter for multiple fields
-    const searchFilter = search
+    const searchFilter = escapedSearch
       ? {
           $or: [
-            { courseName: { $regex: search, $options: 'i' } },
-            { description: { $regex: search, $options: 'i' } },
-            { videoCredits: { $regex: search, $options: 'i' } },
-            { metaTitle: { $regex: search, $options: 'i' } },
-            { metaDescription: { $regex: search, $options: 'i' } },
-            { 'chapters.title': { $regex: search, $options: 'i' } }
+            { courseName: { $regex: escapedSearch, $options: 'i' } },
+            { description: { $regex: escapedSearch, $options: 'i' } },
+            { videoCredits: { $regex: escapedSearch, $options: 'i' } },
+            { metaTitle: { $regex: escapedSearch, $options: 'i' } },
+            { metaDescription: { $regex: escapedSearch, $options: 'i' } },
+            { 'chapters.title': { $regex: escapedSearch, $options: 'i' } }
           ]
         }
       : {};
@@ -250,11 +252,12 @@ const getCourse = async (req, res) => {
         );
     }
 
-    // If not found by ID, or not a valid ObjectId, try finding by courseSlug
+    // If not found by ID, or not a valid ObjectId, try finding by courseSlug case-insensitively using Collation
     if (!course) {
       course = await Course.findOne({
-        courseSlug: { $regex: `^${id}$`, $options: 'i' } // case-insensitive exact match
+        courseSlug: id
       })
+        .collation({ locale: 'en', strength: 2 })
         .populate('categories', 'name')
         .select(
           'courseName courseType description youtubeLink videoCredits categories chapters status metaTitle metaDescription courseSlug'

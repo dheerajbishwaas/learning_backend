@@ -126,8 +126,10 @@ exports.getAllCategory = async (req, res) => {
 exports.getAllCategorys = async (req, res) => {
   try {
     const search = req.query.search || '';
+    const escapeRegex = (text) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    const escapedSearch = escapeRegex(search);
     const categories = await CourseCategory.find({
-      name: { $regex: search, $options: 'i' },
+      name: { $regex: escapedSearch, $options: 'i' },
       status: 'active',
     }).select('id name icon').sort({ name: 1 });
 
@@ -143,7 +145,8 @@ exports.getPaginatedCourse = async (req, res) => {
     const query = { status: 'published' };
 
     if (search) {
-      query.courseName = { $regex: search, $options: 'i' };
+      const escapeRegex = (text) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+      query.courseName = { $regex: escapeRegex(search), $options: 'i' };
     }
 
     if (cat_id) {
@@ -212,7 +215,8 @@ exports.getPaginatedCourseCategories = async (req, res) => {
     const query = {};
 
     if (search) {
-      query.name = { $regex: search, $options: 'i' }; // case-insensitive search
+      const escapeRegex = (text) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+      query.name = { $regex: escapeRegex(search), $options: 'i' }; // case-insensitive search
     }
 
     const [categories, total] = await Promise.all([
