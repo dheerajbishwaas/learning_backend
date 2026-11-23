@@ -23,7 +23,7 @@ app.use(cors({
 
     const cleanOrigin = origin.toLowerCase().replace(/\/$/, '');
 
-    if (allowedOrigins.includes(cleanOrigin)) {
+    if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes('*')) {
       callback(null, true);
     } else {
       console.log("Blocked:", cleanOrigin);
@@ -31,7 +31,8 @@ app.use(cors({
       // callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Guest-Token', 'X-Requested-With', 'Accept']
 }));
 app.options('*', cors());
 // Serve static files from the uploads folder
@@ -54,12 +55,50 @@ app.use('/api/course', courseRouter);
 
 app.use('/api/questions', require('./routes/questionRoutes'));
 
+// PDF Assistant module routes
+app.use('/api/pdf', require('./modules/pdf-assistant/routes/pdfRoutes'));
+
+// Initialize background worker and cleanup scheduler for PDF Assistant
+if (process.env.PDF_WORKER_MODE !== 'separate') {
+  const queueService = require('./modules/pdf-assistant/services/queueService');
+  const cleanupService = require('./modules/pdf-assistant/services/cleanupService');
+  queueService.startWorker();
+  cleanupService.startScheduler();
+}
 
 // Database connection 
 require('./config/dbConfig');
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// Graceful shutdown handling
+function gracefulShutdown(signal) {
+  console.log(`Received ${signal}. Shutting down gracefully...`);
+  if (process.env.PDF_WORKER_MODE !== 'separate') {
+    try {
+      const queueService = require('./modules/pdf-assistant/services/queueService');
+      const cleanupService = require('./modules/pdf-assistant/services/cleanupService');
+      queueService.stopWorker();
+      cleanupService.stopScheduler();
+    } catch (e) {
+      console.error('Error stopping PDF services:', e);
+    }
+  }
+  server.close(() => {
+    mongoose.connection.close(false, () => {
+      console.log('Server closed and MongoDB connection disconnected.');
+      process.exit(0);
+    });
+  });
+  setTimeout(() => {
+    console.error('Force shutdown after timeout.');
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
